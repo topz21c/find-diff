@@ -81,6 +81,9 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 .step-btn:active{transform:scale(0.93)}
 .step-val{min-width:48px;text-align:center;font-size:17px;font-weight:700;color:#007AFF;background:#f0f7ff;border-radius:8px;padding:6px 4px}
 .step-hint{font-size:11px;color:#aaa;margin-left:2px}
+.save-btn{width:100%;padding:9px;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#007AFF;margin-top:6px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+.save-btn:hover{background:#f0f7ff;border-color:#007AFF}
+.save-btn:active{transform:scale(0.98)}
 </style>
 </head>
 <body>
@@ -162,8 +165,12 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
       </div>
     </div>
     <div class="panel" id="panel-stack">
-      <div class="cv-title">위 그림</div><div class="cvwrap" style="margin-bottom:4px"><canvas id="cv-top-k"></canvas></div>
-      <div class="cv-title">아래 그림</div><div class="cvwrap"><canvas id="cv-bot-k"></canvas></div>
+      <div class="cv-title">위 그림</div>
+      <div class="cvwrap" style="margin-bottom:4px"><canvas id="cv-top-k"></canvas></div>
+      <button class="save-btn" onclick="saveCanvas('cv-top-k','위그림.png')">⬇ 위 그림 저장</button>
+      <div class="cv-title" style="margin-top:10px">아래 그림</div>
+      <div class="cvwrap"><canvas id="cv-bot-k"></canvas></div>
+      <button class="save-btn" onclick="saveCanvas('cv-bot-k','아래그림.png')">⬇ 아래 그림 저장</button>
     </div>
     <div class="panel" id="panel-blink">
       <div class="cvwrap"><canvas id="cv-blink"></canvas></div>
@@ -751,6 +758,15 @@ function stepVal(id, delta){
 }
 
 window.addEventListener('resize',()=>{if(regions.length) renderCurrentTab();});
+
+function saveCanvas(cvId, filename){
+  const cv=document.getElementById(cvId);
+  if(!cv||cv.width===0) return;
+  const a=document.createElement('a');
+  a.href=cv.toDataURL('image/png');
+  a.download=filename;
+  a.click();
+}
 </script>
 
 <script>

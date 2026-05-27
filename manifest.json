@@ -1,0 +1,22 @@
+{
+  "name": "틀린 그림 찾기",
+  "short_name": "틀린그림찾기",
+  "description": "픽셀 비교로 두 그림의 차이점을 찾아냅니다",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f4f2",
+  "theme_color": "#1a1a1a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

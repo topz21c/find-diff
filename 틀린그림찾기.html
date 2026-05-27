@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>틀린 그림 찾기</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1a1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="틀린그림찾기">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-startup-image" href="icon-512.png">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f4f2;color:#1a1a1a;min-height:100vh;
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:env(safe-area-inset-bottom);
+  padding-left:env(safe-area-inset-left);
+  padding-right:env(safe-area-inset-right);}
+.wrap{max-width:900px;margin:0 auto;padding:20px 16px}
+h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
+.sub{font-size:14px;color:#666;text-align:center;margin-bottom:20px}
+.badge-green{display:inline-block;background:#34C759;color:#fff;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;margin-left:8px;vertical-align:middle}
+.dz{border:2px dashed #ccc;border-radius:14px;padding:36px 20px;text-align:center;cursor:pointer;background:#fff;transition:all .15s;margin-bottom:14px}
+.dz:hover,.dz.drag{border-color:#007AFF;background:#f0f7ff}
+.dz .ico{font-size:44px;margin-bottom:10px}
+.dz h2{font-size:16px;font-weight:600;margin-bottom:5px}
+.dz p{font-size:13px;color:#888}
+#fi{display:none}
+.fbar{display:none;background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:12px 16px;margin-bottom:12px;align-items:center;gap:10px}
+.fname{font-size:14px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fmeta{font-size:12px;color:#888;margin-top:2px;display:flex;gap:8px}
+.fext{font-size:11px;padding:2px 8px;border-radius:6px;background:#e8f0fe;color:#1a73e8;font-weight:600}
+.xbtn{background:none;border:none;font-size:20px;cursor:pointer;color:#999}
+.ctrl{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:14px 16px;margin-bottom:14px;display:none}
+.ctrl h3{font-size:14px;font-weight:600;margin-bottom:10px}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.row label{font-size:13px;color:#555;min-width:70px}
+.row input[type=range]{flex:1}
+.row span{font-size:13px;font-weight:600;min-width:30px;text-align:right;color:#007AFF}
+.hint{font-size:12px;color:#999;line-height:1.5;margin-top:4px}
+.abtn{width:100%;padding:13px;font-size:15px;font-weight:600;border:none;border-radius:12px;background:#1a1a1a;color:#fff;cursor:pointer;opacity:.4;pointer-events:none;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px}
+.abtn.ready{opacity:1;pointer-events:auto}.abtn.ready:hover{background:#333}
+.abtn.running{opacity:.7;pointer-events:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;display:none}
+.stbar{text-align:center;font-size:12px;color:#666;margin:4px 0;min-height:16px}
+.errbox{background:#fcebeb;border:1px solid #f09595;border-radius:10px;padding:12px;font-size:13px;color:#a32d2d;display:none;margin:8px 0;white-space:pre-wrap}
+.result{display:none;margin-top:12px}
+.rhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.rhead h2{font-size:18px;font-weight:700}
+.rbadge{background:#1a1a1a;color:#fff;font-size:13px;padding:4px 12px;border-radius:20px}
+.tabs{display:flex;gap:6px;margin-bottom:8px}
+.tab{flex:1;padding:7px 4px;font-size:12px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#666;text-align:center;font-weight:500;transition:all .15s}
+.tab.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.panel{display:none}.panel.on{display:block}
+.cv-title{font-size:12px;font-weight:600;color:#555;margin-bottom:3px;padding-left:2px}
+.cvwrap{position:relative;border-radius:10px;overflow:hidden;border:1px solid #ddd;background:#111}
+.cvwrap canvas{display:block;width:100%;height:auto}
+.clbl{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;padding:3px 10px;border-radius:20px;pointer-events:none}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dlist{margin-top:10px}
+.dlist h3{font-size:14px;font-weight:600;margin-bottom:6px}
+.di{display:flex;align-items:center;gap:8px;padding:7px 12px;background:#fff;border:1px solid #e8e8e8;border-radius:8px;margin-bottom:4px;cursor:pointer;font-size:13px;transition:background .15s}
+.di:hover{background:#f5f5f3}.di.on{background:#f0f0ee;border-color:#bbb}
+.ddot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.dnum{margin-left:auto;font-size:11px;padding:2px 9px;border-radius:10px;background:#f0f0ee;color:#666}
+.rbtn{width:100%;padding:7px;font-size:12px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#666;margin-top:6px}
+.rbtn:hover{background:#f5f5f3}
+@media(max-width:480px){.sg{grid-template-columns:1fr}}
+
+.stepper-row{display:flex;align-items:center;gap:12px;margin-bottom:7px}
+.stepper-label{font-size:13px;color:#555;min-width:60px;font-weight:500}
+.stepper{display:flex;align-items:center;gap:8px}
+.step-btn{width:40px;height:40px;border:1px solid #ddd;background:#fff;border-radius:10px;font-size:18px;cursor:pointer;color:#1a1a1a;transition:all .15s;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.step-btn:hover{background:#007AFF;color:#fff;border-color:#007AFF}
+.step-btn:active{transform:scale(0.93)}
+.step-val{min-width:48px;text-align:center;font-size:17px;font-weight:700;color:#007AFF;background:#f0f7ff;border-radius:8px;padding:6px 4px}
+.step-hint{font-size:11px;color:#aaa;margin-left:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔍 틀린 그림 찾기</h1>
+  <div class="sub">이미지를 업로드하면 픽셀 비교로 차이점을 자동으로 찾아냅니다</div>
+  <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;">created by topz</div>
+
+  <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
+    <div class="ico">📸</div>
+    <h2>사진을 선택하거나 드래그하여 업로드</h2>
+    <p>위아래 두 그림이 있는 스크린샷 · JPG · PNG 지원</p>
+  </div>
+  <input type="file" id="fi" accept="image/*" style="display:none">
+
+  <div class="fbar" id="fbar">
+    <span style="font-size:28px">🖼️</span>
+    <div style="flex:1;min-width:0">
+      <div class="fname" id="fname"></div>
+      <div class="fmeta"><span class="fext" id="fext"></span><span id="fsize"></span></div>
+    </div>
+    <button class="xbtn" onclick="resetAll()">✕</button>
+  </div>
+  <!-- 미리보기 -->
+  <div id="prev-wrap" style="display:none;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;margin-bottom:12px;background:#000;text-align:center;max-height:400px;">
+    <img id="prev-img" alt="미리보기" style="width:100%;height:auto;max-height:400px;object-fit:contain;display:block;margin:0 auto;">
+  </div>
+
+  <div class="ctrl" id="ctrl">
+    <h3>⚙️ 분석 설정</h3>
+    <div class="stepper-row">
+      <span class="stepper-label">블록 크기</span>
+      <div class="stepper">
+        <button class="step-btn" onclick="stepVal('block',-2)">◀</button>
+        <span class="step-val" id="blockval">14</span>
+        <button class="step-btn" onclick="stepVal('block',2)">▶</button>
+      </div>
+      <span class="step-hint">세밀 ← → 빠름</span>
+    </div>
+    <div class="stepper-row">
+      <span class="stepper-label">감도</span>
+      <div class="stepper">
+        <button class="step-btn" onclick="stepVal('sens',-1)">◀</button>
+        <span class="step-val" id="sensval">40</span>
+        <button class="step-btn" onclick="stepVal('sens',1)">▶</button>
+      </div>
+      <span class="step-hint">민감 ← → 둔감</span>
+    </div>
+    <div class="hint" style="margin-top:8px">
+      버튼을 누르면 즉시 재분석합니다 · 차이점 5개를 찾을 때까지 감도 자동 조절
+    </div>
+    <!-- 숨김 hidden inputs -->
+    <input type="hidden" id="block" value="14">
+    <input type="hidden" id="sens" value="40">
+    <input type="hidden" id="maxreg" value="5">
+  </div>
+
+  <div class="stbar" id="stbar"></div>
+  <div class="errbox" id="errbox"></div>
+
+  <button class="abtn" id="abtn" onclick="analyze()">
+    <div class="spinner" id="spinner"></div>
+    <span id="btnico">🔍</span>
+    <span id="btntxt">틀린 부분 찾기</span>
+  </button>
+
+  <div class="result" id="result">
+    <div class="rhead"><h2>분석 결과</h2><span class="rbadge" id="rbadge"></span></div>
+    <div class="tabs">
+      <button class="tab on" data-p="side">좌우 비교</button>
+      <button class="tab" data-p="stack">위아래</button>
+      <button class="tab" data-p="blink">깜빡임</button>
+      <button class="tab" data-p="diff">차이 강조</button>
+    </div>
+    <div class="panel on" id="panel-side">
+      <div class="sg">
+        <div><div class="cv-title">위 그림</div><div class="cvwrap"><canvas id="cv-top-s"></canvas></div></div>
+        <div><div class="cv-title">아래 그림</div><div class="cvwrap"><canvas id="cv-bot-s"></canvas></div></div>
+      </div>
+    </div>
+    <div class="panel" id="panel-stack">
+      <div class="cv-title">위 그림</div><div class="cvwrap" style="margin-bottom:4px"><canvas id="cv-top-k"></canvas></div>
+      <div class="cv-title">아래 그림</div><div class="cvwrap"><canvas id="cv-bot-k"></canvas></div>
+    </div>
+    <div class="panel" id="panel-blink">
+      <div class="cvwrap"><canvas id="cv-blink"></canvas></div>
+    </div>
+    <div class="panel" id="panel-diff">
+      <div class="cvwrap"><canvas id="cv-diff"></canvas></div>
+    </div>
+    <div class="dlist">
+      <h3 id="dtitle"></h3>
+      <div id="ditems"></div>
+      <button class="rbtn" onclick="resetAll()">↺ 새 이미지 분석</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS=['#FF3B30','#FF9500','#34C759','#007AFF','#AF52DE','#FF2D55','#00C7BE','#FF9F0A'];
+let imgDU='', topCV=null, botCV=null;
+let regions=[], activeIdx=-1, blinkTimer=null, IW=0, IH=0;
+let lastBlockDiff=null; // 차이 강조용 저장
+
+['block','sens','maxreg'].forEach(id=>{
+  document.getElementById(id).oninput=e=>document.getElementById(id+'val').textContent=e.target.value;
+});
+
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);});
+document.getElementById('fi').addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0]);});
+
+function loadFile(file){
+  const name=file.name||'image', dot=name.lastIndexOf('.');
+  document.getElementById('fname').textContent=dot>=0?name.slice(0,dot):name;
+  document.getElementById('fext').textContent='.'+(dot>=0?name.slice(dot+1).toUpperCase():'IMG');
+  document.getElementById('fsize').textContent=file.size>1048576?(file.size/1048576).toFixed(1)+'MB':Math.round(file.size/1024)+'KB';
+  document.getElementById('fbar').style.display='flex';
+  document.getElementById('ctrl').style.display='block';
+  document.getElementById('result').style.display='none';
+  showErr(''); regions=[];
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    imgDU = ev.target.result; // base64 dataURL
+
+    // 미리보기: base64 직접 사용 (objectURL CORS 문제 없음)
+    const previewImg = document.getElementById('prev-img');
+    const previewWrap = document.getElementById('prev-wrap');
+
+    // 업로드 박스 숨기고 미리보기 표시
+    dz.style.display = 'none';
+
+    previewImg.onload = () => {
+      previewWrap.style.display = 'block';
+    };
+    previewImg.onerror = () => {
+      previewWrap.style.display = 'none';
+    };
+    // src 설정 전에 onload 등록 (캐시된 경우 onload가 먼저 발생할 수 있으므로)
+    if(previewImg.complete && previewImg.naturalWidth > 0){
+      previewWrap.style.display = 'block';
+    }
+    previewImg.src = imgDU;
+
+    // 자동 분석 시작
+    document.getElementById('abtn').classList.add('ready');
+    setLoading(true); showErr('');
+    setSt('이미지 분석 중...');
+    setTimeout(()=>autoAnalyze(parseInt(document.getElementById('sens').value), 0), 150);
+  };
+  reader.onerror = ()=>showErr('파일 읽기 실패');
+  reader.readAsDataURL(file);
+}
+
+function analyze(){
+  if(!imgDU) return;
+  setLoading(true); showErr('');
+  document.getElementById('result').style.display='none';
+  setSt('이미지 분석 중...');
+  // 5개를 찾을 때까지 감도를 자동으로 낮추며 재시도
+  autoAnalyze(parseInt(document.getElementById('sens').value), 0);
+}
+
+function autoAnalyze(currentSens, attempt, doneCallback){
+  if(attempt>8){
+    doAnalyze(currentSens, true, null, doneCallback);
+    return;
+  }
+  doAnalyze(currentSens, false, (found)=>{
+    if(found>=5){
+      if(doneCallback) doneCallback();
+      return;
+    }
+    const nextSens=Math.max(2, currentSens-3);
+    if(nextSens===currentSens){
+      doAnalyze(currentSens, true, null, doneCallback); return;
+    }
+    setSt(`감도 조절 중 (${nextSens})... 현재 ${found}개 발견`);
+    setTimeout(()=>autoAnalyze(nextSens, attempt+1, doneCallback), 30);
+  });
+}
+
+// ── 가우시안 블러 (노이즈 제거용) ──
+function gaussianBlur(data, w, h, radius){
+  const out=new Float32Array(data.length);
+  const sigma=radius/2, twoSigSq=2*sigma*sigma;
+  const kernSize=Math.ceil(radius)*2+1;
+  const kern=[];
+  let kernSum=0;
+  for(let i=0;i<kernSize;i++){
+    const x=i-Math.floor(kernSize/2);
+    kern.push(Math.exp(-(x*x)/twoSigSq));
+    kernSum+=kern[kern.length-1];
+  }
+  for(let i=0;i<kernSize;i++) kern[i]/=kernSum;
+
+  // 수평
+  const tmp=new Float32Array(data.length);
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      let s=0,ws=0;
+      for(let k=0;k<kernSize;k++){
+        const nx=x+k-Math.floor(kernSize/2);
+        if(nx<0||nx>=w) continue;
+        s+=data[y*w+nx]*kern[k]; ws+=kern[k];
+      }
+      tmp[y*w+x]=s/ws;
+    }
+  }
+  // 수직
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      let s=0,ws=0;
+      for(let k=0;k<kernSize;k++){
+        const ny=y+k-Math.floor(kernSize/2);
+        if(ny<0||ny>=h) continue;
+        s+=tmp[ny*w+x]*kern[k]; ws+=kern[k];
+      }
+      out[y*w+x]=s/ws;
+    }
+  }
+  return out;
+}
+
+function doAnalyze(forceSens, forceFinal, callback, doneCallback){
+  const img=new Image();
+  img.onload=()=>{
+    try{
+      const fw=img.naturalWidth, fh=img.naturalHeight;
+      const full=document.createElement('canvas');full.width=fw;full.height=fh;
+      const fctx=full.getContext('2d');fctx.drawImage(img,0,0);
+      const px=fctx.getImageData(0,0,fw,fh).data;
+
+      // ── 1. 구조 자동 감지 ──
+      let topStart=Math.floor(fh*0.15);
+      for(let y=30;y<fh*0.4;y++){
+        let pc=0;
+        for(let x=0;x<fw;x+=4){const i=(y*fw+x)*4;if(px[i]>120&&px[i]<230&&px[i+1]<130&&px[i+2]>160)pc++;}
+        if(pc>fw/4*0.8) topStart=y+1;
+      }
+      // 밝기 배열 계산
+      const rowBr=new Float32Array(fh);
+      for(let y=0;y<fh;y++){
+        let s=0,n=0;
+        for(let x=0;x<fw;x+=6){const i=(y*fw+x)*4;s+=(px[i]+px[i+1]+px[i+2])/3;n++;}
+        rowBr[y]=s/n;
+      }
+      // 구분선 감지: 43%~63% 구간에서 밝기가 가장 크게 하강하는 지점
+      // (밝은 구분선 → 어두운 이미지 시작)
+      const SCAN_S=Math.floor(fh*0.43), SCAN_E=Math.floor(fh*0.63);
+      const WIN=5;
+      let bestDrop=0, bestDropY=Math.floor(fh*0.5);
+      for(let y=SCAN_S;y<SCAN_E;y++){
+        let before=0,after=0,nb=0,na=0;
+        for(let d=1;d<=WIN;d++){if(y-d>=0){before+=rowBr[y-d];nb++;} if(y+d<fh){after+=rowBr[y+d];na++;}}
+        const drop=(nb?before/nb:0)-(na?after/na:0);
+        if(drop>bestDrop){bestDrop=drop;bestDropY=y;}
+      }
+      let splitY=bestDropY-1;
+      let botStart=bestDropY;
+      // 구분선 앞 흰색 행들 건너뛰기 (splitY 앞으로 당기기)
+      for(let y=splitY;y>splitY-20;y--){
+        if(rowBr[y]<230) {splitY=y; break;}
+      }
+      IW=fw; IH=splitY-topStart;
+      if(IH<80){
+        // fallback: 단순 2분할
+        topStart=Math.floor(fh*0.20);
+        splitY=Math.floor(fh*0.52);
+        botStart=Math.floor(fh*0.54);
+        IH=splitY-topStart;
+      }
+
+      // ── 2. 크롭 ──
+      topCV=document.createElement('canvas');topCV.width=fw;topCV.height=IH;
+      topCV.getContext('2d').drawImage(img,0,topStart,fw,IH,0,0,fw,IH);
+      botCV=document.createElement('canvas');botCV.width=fw;botCV.height=IH;
+      botCV.getContext('2d').drawImage(img,0,botStart,fw,IH,0,0,fw,IH);
+
+      const traw=topCV.getContext('2d').getImageData(0,0,fw,IH).data;
+      const braw=botCV.getContext('2d').getImageData(0,0,fw,IH).data;
+
+      // ── 3. 채널별 float 배열로 분리 ──
+      const n=fw*IH;
+      const tR=new Float32Array(n),tG=new Float32Array(n),tB=new Float32Array(n);
+      const bR=new Float32Array(n),bG=new Float32Array(n),bB=new Float32Array(n);
+      for(let i=0;i<n;i++){
+        tR[i]=traw[i*4];tG[i]=traw[i*4+1];tB[i]=traw[i*4+2];
+        bR[i]=braw[i*4];bG[i]=braw[i*4+1];bB[i]=braw[i*4+2];
+      }
+
+      // ── 4. 가우시안 블러로 JPEG 노이즈 제거 ──
+      const BLUR=2.0;
+      const tRb=gaussianBlur(tR,fw,IH,BLUR);
+      const tGb=gaussianBlur(tG,fw,IH,BLUR);
+      const tBb=gaussianBlur(tB,fw,IH,BLUR);
+      const bRb=gaussianBlur(bR,fw,IH,BLUR);
+      const bGb=gaussianBlur(bG,fw,IH,BLUR);
+      const bBb=gaussianBlur(bB,fw,IH,BLUR);
+
+      // ── 5. 글로벌 색상 보정 (채널별 평균 차이 제거) ──
+      let drSum=0,dgSum=0,dbSum=0;
+      for(let i=0;i<n;i++){drSum+=tRb[i]-bRb[i];dgSum+=tGb[i]-bGb[i];dbSum+=tBb[i]-bBb[i];}
+      const drMean=drSum/n, dgMean=dgSum/n, dbMean=dbSum/n;
+
+      // ── 6. 블록 단위 평균 비교 ──
+      const BLOCK=parseInt(document.getElementById('block').value);
+      const sens=forceSens!==undefined ? forceSens : parseInt(document.getElementById('sens').value);
+      const bh=Math.floor(IH/BLOCK), bw2=Math.floor(fw/BLOCK);
+      const blockDiffMap=new Float32Array(IH*fw); // 각 픽셀에 소속 블록의 diff 값 저장
+
+      for(let by=0;by<bh;by++){
+        for(let bx=0;bx<bw2;bx++){
+          let dr=0,dg=0,db=0,cnt=0;
+          for(let dy=0;dy<BLOCK;dy++){
+            for(let dx=0;dx<BLOCK;dx++){
+              const y=by*BLOCK+dy, x=bx*BLOCK+dx;
+              if(y>=IH||x>=fw) continue;
+              const i=y*fw+x;
+              dr+=Math.abs((tRb[i]-bRb[i])-drMean);
+              dg+=Math.abs((tGb[i]-bGb[i])-dgMean);
+              db+=Math.abs((tBb[i]-bBb[i])-dbMean);
+              cnt++;
+            }
+          }
+          // 색상 차이에 가중치 (색상 변화는 R,G,B 모두 변하므로 최대값 사용)
+          const maxDiff=Math.max(dr,dg,db)/cnt;
+          const avgDiff=(dr+dg+db)/(3*cnt);
+          // 색조 변화 감지: 채널 간 비율 변화
+          const val=(maxDiff*0.6+avgDiff*0.4);
+
+          if(val>sens){
+            for(let dy=0;dy<BLOCK;dy++){
+              for(let dx=0;dx<BLOCK;dx++){
+                const y=by*BLOCK+dy, x=bx*BLOCK+dx;
+                if(y<IH&&x<fw) blockDiffMap[y*fw+x]=val;
+              }
+            }
+          }
+        }
+      }
+
+      lastBlockDiff=blockDiffMap;
+
+      // ── 7. BFS 연결 성분 (블록 그리드 기반) ──
+      const visitedB=new Uint8Array(bh*bw2);
+      const hotBlocks=new Uint8Array(bh*bw2);
+      // 블록별 diff 계산
+      const blockDiff=new Float32Array(bh*bw2);
+      for(let by=0;by<bh;by++){
+        for(let bx=0;bx<bw2;bx++){
+          blockDiff[by*bw2+bx]=blockDiffMap[by*BLOCK*fw+bx*BLOCK];
+          if(blockDiff[by*bw2+bx]>0) hotBlocks[by*bw2+bx]=1;
+        }
+      }
+
+      const rawRegions=[];
+      for(let by=0;by<bh;by++){
+        for(let bx=0;bx<bw2;bx++){
+          const idx=by*bw2+bx;
+          if(!hotBlocks[idx]||visitedB[idx]) continue;
+          const q=[[bx,by]]; visitedB[idx]=1;
+          let x1=bx,y1=by,x2=bx,y2=by,cnt=0,peakV=0;
+          while(q.length){
+            const[cx,cy]=q.shift(); cnt++;
+            if(blockDiff[cy*bw2+cx]>peakV) peakV=blockDiff[cy*bw2+cx];
+            x1=Math.min(x1,cx);y1=Math.min(y1,cy);x2=Math.max(x2,cx);y2=Math.max(y2,cy);
+            for(const[dx,dy] of[[-1,0],[1,0],[0,-1],[0,1]]){
+              const nx=cx+dx,ny=cy+dy;
+              if(nx<0||nx>=bw2||ny<0||ny>=bh) continue;
+              const ni=ny*bw2+nx;
+              if(!hotBlocks[ni]||visitedB[ni]) continue;
+              visitedB[ni]=1; q.push([nx,ny]);
+            }
+          }
+          if(cnt>=2){
+            rawRegions.push({
+              x1:x1*BLOCK, y1:y1*BLOCK,
+              x2:Math.min(fw,(x2+1)*BLOCK), y2:Math.min(IH,(y2+1)*BLOCK),
+              cnt, peakV
+            });
+          }
+        }
+      }
+
+      // ── 8. 인접 블록 병합 (GAP: 3블록) ──
+      rawRegions.sort((a,b)=>b.peakV-a.peakV);
+      const GAP=BLOCK*2;
+      const merged=[];
+      for(const r of rawRegions){
+        let found=false;
+        for(const m of merged){
+          if(r.x1<=m.x2+GAP&&r.x2>=m.x1-GAP&&r.y1<=m.y2+GAP&&r.y2>=m.y1-GAP){
+            m.x1=Math.min(m.x1,r.x1);m.y1=Math.min(m.y1,r.y1);
+            m.x2=Math.max(m.x2,r.x2);m.y2=Math.max(m.y2,r.y2);
+            m.cnt+=r.cnt; m.peakV=Math.max(m.peakV,r.peakV);
+            found=true; break;
+          }
+        }
+        if(!found) merged.push({...r});
+      }
+
+      merged.sort((a,b)=>b.peakV-a.peakV);
+
+      const maxArea=fw*IH*0.15;
+      const PAD=Math.round(BLOCK*0.3);
+      const maxReg=5; // 항상 5개 목표
+
+      // 최대 박스 크기: 이미지 면적의 4% 이하만 허용
+      const maxBoxArea=fw*IH*0.02;
+      regions=merged
+        .filter(r=>(r.x2-r.x1)*(r.y2-r.y1)<maxBoxArea)
+        .slice(0,maxReg)
+        .map((r,i)=>({
+          x1:Math.max(0,r.x1-PAD), y1:Math.max(0,r.y1-PAD),
+          x2:Math.min(fw,r.x2+PAD), y2:Math.min(IH,r.y2+PAD),
+          peakV:r.peakV,
+          color:COLORS[i%COLORS.length],
+          desc:makeDesc(r,traw,braw,fw,IH)
+        }));
+
+      if(!regions.length){
+        if(callback && !forceFinal){ callback(0); return; }
+        showErr('차이점을 찾지 못했습니다.\n감도를 낮추거나 블록 크기를 줄여서 다시 시도해보세요.');
+        setLoading(false); return;
+      }
+
+      // callback 모드: 5개 미만이면 callback 호출해서 재시도
+      if(callback && !forceFinal && regions.length < 5){
+        callback(regions.length);
+        return;
+      }
+      // 최종 결과 표시
+      buildList();
+      document.getElementById('result').style.display='block';
+      document.getElementById('rbadge').textContent=regions.length+'개 발견';
+      document.getElementById('dtitle').textContent='발견된 차이점 '+regions.length+'개';
+      setSt('✅ '+regions.length+'개의 차이점을 발견했습니다!');
+      setLoading(false);
+      renderCurrentTab();
+      if(doneCallback) doneCallback();
+      else setTimeout(()=>document.getElementById('result').scrollIntoView({behavior:'smooth'}),200);
+      if(callback) callback(regions.length);
+    }catch(e){showErr('분석 오류: '+e.message);setLoading(false);}
+  };
+  img.onerror=()=>{showErr('이미지 로드 실패');setLoading(false);};
+  img.src=imgDU;
+}
+
+function makeDesc(r,tpx,bpx,fw,fh){
+  const cx=Math.round((r.x1+r.x2)/2), cy=Math.round((r.y1+r.y2)/2);
+  const i=(cy*fw+cx)*4;
+  const tc=[tpx[i],tpx[i+1],tpx[i+2]];
+  const bc=[bpx[i],bpx[i+1],bpx[i+2]];
+  const hpos=cx/fw<0.33?'왼쪽':cx/fw<0.66?'중앙':'오른쪽';
+  const vpos=cy/fh<0.33?'상단':cy/fh<0.66?'중앙':'하단';
+  function dominant(rgb){
+    const[r2,g,b]=rgb; const mx=Math.max(r2,g,b);
+    if(mx<70) return '어두운';
+    if(r2===mx&&r2>g+30&&r2>b+30) return '빨간';
+    if(g===mx&&g>r2+20&&g>b+20) return '초록';
+    if(b===mx&&b>r2+20&&b>g+20) return '파란';
+    if(r2>170&&g>170&&b<100) return '노란';
+    if(r2>170&&g>90&&b<80) return '주황';
+    if(r2>180&&g>150&&b>150) return '분홍';
+    if(r2>200&&g>200&&b>200) return '흰';
+    return '회색';
+  }
+  const tc2=dominant(tc), bc2=dominant(bc);
+  const change=tc2!==bc2?tc2+'→'+bc2+' 색상 변경':'색상/내용 변경';
+  return `${hpos} ${vpos} — ${change}`;
+}
+
+function buildDiffCanvas(){
+  const cv=document.getElementById('cv-diff');
+  const wrap=cv.parentElement;
+  const dw=wrap.clientWidth||600;
+  const dh=Math.round(dw*IH/IW);
+  cv.width=dw;cv.height=dh;cv.style.width=dw+'px';cv.style.height=dh+'px';
+  const ctx=cv.getContext('2d');
+  ctx.drawImage(topCV,0,0,dw,dh);
+  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,dw,dh);
+  if(lastBlockDiff){
+    const id2=ctx.createImageData(dw,dh);
+    const tpx=topCV.getContext('2d').getImageData(0,0,IW,IH).data;
+    const scX=IW/dw,scY=IH/dh;
+    // 히트맵: 차이가 클수록 밝게
+    let maxV=0;
+    for(let i=0;i<lastBlockDiff.length;i++) if(lastBlockDiff[i]>maxV) maxV=lastBlockDiff[i];
+    for(let y=0;y<dh;y++){
+      for(let x=0;x<dw;x++){
+        const sx=Math.floor(x*scX),sy=Math.floor(y*scY);
+        const v=lastBlockDiff[sy*IW+sx];
+        const di=(y*dw+x)*4;
+        if(v>0){
+          const si=(sy*IW+sx)*4;
+          // 차이 강도에 따라 원본 색상 + 강조
+          const intensity=Math.min(1,v/maxV);
+          id2.data[di]=Math.min(255,tpx[si]+intensity*80);
+          id2.data[di+1]=tpx[si+1]*(1-intensity*0.5);
+          id2.data[di+2]=tpx[si+2]*(1-intensity*0.5);
+          id2.data[di+3]=200+intensity*55;
+        }
+      }
+    }
+    ctx.putImageData(id2,0,0);
+  }
+  drawMarkers(ctx,dw,dh,-1,IW,IH);
+}
+
+function drawToCanvas(cvId,srcCanvas,hl){
+  const cv=document.getElementById(cvId);if(!cv||!srcCanvas) return;
+  const wrap=cv.parentElement;
+  const dw=wrap.clientWidth||wrap.offsetWidth||600;
+  const dh=Math.round(dw*IH/IW);
+  cv.width=dw;cv.height=dh;cv.style.width=dw+'px';cv.style.height=dh+'px';
+  const ctx=cv.getContext('2d');
+  ctx.drawImage(srcCanvas,0,0,dw,dh);
+  drawMarkers(ctx,dw,dh,hl,IW,IH);
+
+  cv.onclick=e=>{
+    const rect=cv.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*(dw/rect.width);
+    const my=(e.clientY-rect.top)*(dh/rect.height);
+    const sx=dw/IW,sy=dh/IH;
+    let hit=-1;
+    regions.forEach((r,i)=>{if(mx>=r.x1*sx&&mx<=r.x2*sx&&my>=r.y1*sy&&my<=r.y2*sy) hit=i;});
+    highlightAll(hit===activeIdx?-1:hit);
+  };
+}
+
+function drawMarkers(ctx,dw,dh,hl,fw,fh){
+  const sx=dw/fw, sy=dh/fh;
+  regions.forEach((r,i)=>{
+    const dim=(hl!==-1&&i!==hl);
+    const lw=Math.max(2,dw/350);
+    const rs=Math.max(11,dw/80); // 번호 원 반지름
+    const bx1=r.x1*sx, by1=r.y1*sy;
+    const bx2=r.x2*sx, by2=r.y2*sy;
+
+    // 박스 테두리 + 반투명 채우기
+    ctx.globalAlpha=dim?0.12:1;
+    ctx.strokeStyle=r.color; ctx.lineWidth=lw;
+    ctx.strokeRect(bx1,by1,bx2-bx1,by2-by1);
+    const[cr,cg,cb]=hexRgb(r.color);
+    ctx.fillStyle=`rgba(${cr},${cg},${cb},0.1)`;
+    ctx.fillRect(bx1,by1,bx2-bx1,by2-by1);
+
+    // 번호 원: 박스 바깥 위쪽에 배치
+    // 박스 위에 충분한 공간 있으면 위쪽, 없으면 박스 아래쪽 바깥
+    const numX=(bx1+bx2)/2;
+    let numY=by1-rs-lw-2; // 박스 위쪽 바깥
+    if(numY<rs) numY=by2+rs+lw+2; // 공간 없으면 아래쪽 바깥
+
+    ctx.globalAlpha=dim?0.15:1;
+    ctx.beginPath(); ctx.arc(numX,numY,rs,0,Math.PI*2);
+    ctx.fillStyle=r.color; ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.font=`bold ${Math.round(rs*1.1)}px sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(i+1,numX,numY);
+    ctx.globalAlpha=1;
+  });
+}
+
+function renderCurrentTab(){
+  const p=document.querySelector('.tab.on')?.dataset.p||'side';
+  if(p==='side'){drawToCanvas('cv-top-s',topCV,activeIdx);drawToCanvas('cv-bot-s',botCV,activeIdx);}
+  else if(p==='stack'){drawToCanvas('cv-top-k',topCV,activeIdx);drawToCanvas('cv-bot-k',botCV,activeIdx);}
+  else if(p==='blink') startBlink();
+  else if(p==='diff') buildDiffCanvas();
+}
+
+function highlightAll(idx){
+  activeIdx=idx;
+  document.querySelectorAll('.di').forEach((el,i)=>el.classList.toggle('on',i===idx));
+  renderCurrentTab();
+}
+
+function startBlink(){
+  if(blinkTimer){clearInterval(blinkTimer);blinkTimer=null;}
+  if(!topCV||!botCV) return;
+  const cv=document.getElementById('cv-blink');
+  const wrap=cv.parentElement;
+  const dw=wrap.clientWidth||wrap.offsetWidth||600;
+  const dh=Math.round(dw*IH/IW);
+  cv.width=dw;cv.height=dh;cv.style.width=dw+'px';cv.style.height=dh+'px';
+  const ctx=cv.getContext('2d');
+  let showTop=true;
+  const draw=()=>{
+    ctx.clearRect(0,0,dw,dh);
+    ctx.drawImage(showTop?topCV:botCV,0,0,dw,dh);
+    drawMarkers(ctx,dw,dh,activeIdx,IW,IH);
+    showTop=!showTop;
+  };
+  draw();blinkTimer=setInterval(draw,900);
+}
+
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    if(blinkTimer){clearInterval(blinkTimer);blinkTimer=null;}
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+    btn.classList.add('on');
+    document.getElementById('panel-'+btn.dataset.p).classList.add('on');
+    setTimeout(renderCurrentTab,30);
+  });
+});
+
+function buildList(){
+  const cont=document.getElementById('ditems');cont.innerHTML='';
+  regions.forEach((r,i)=>{
+    const el=document.createElement('div');el.className='di';
+    el.innerHTML=`<div class="ddot" style="background:${r.color}"></div><span>${r.desc}</span><span class="dnum">${i+1}번</span>`;
+    el.addEventListener('click',()=>highlightAll(activeIdx===i?-1:i));
+    cont.appendChild(el);
+  });
+}
+
+function hexRgb(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
+function setLoading(on){
+  document.getElementById('spinner').style.display=on?'block':'none';
+  document.getElementById('btnico').style.display=on?'none':'inline';
+  document.getElementById('btntxt').textContent=on?'분석 중...':'틀린 부분 찾기';
+  document.getElementById('abtn').classList.toggle('running',on);
+}
+function setSt(m){document.getElementById('stbar').textContent=m;}
+function showErr(m){const e=document.getElementById('errbox');e.textContent=m;e.style.display=m?'block':'none';}
+
+function resetAll(){
+  if(blinkTimer){clearInterval(blinkTimer);blinkTimer=null;}
+  imgDU='';topCV=null;botCV=null;regions=[];activeIdx=-1;IW=0;IH=0;lastBlockDiff=null;
+  dz.style.display='block';
+  document.getElementById('prev-wrap').style.display='none';
+  document.getElementById('prev-img').src='';
+  document.getElementById('fbar').style.display='none';
+  document.getElementById('ctrl').style.display='none';
+  document.getElementById('result').style.display='none';
+  document.getElementById('abtn').classList.remove('ready','running');
+  setSt('');showErr('');
+  document.getElementById('fi').value='';
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',i===0));
+  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('on',i===0));
+}
+
+// 블록/감도 스텝 버튼
+const BLOCK_MIN=4, BLOCK_MAX=32, SENS_MIN=2, SENS_MAX=40;
+function stepVal(id, delta){
+  const el=document.getElementById(id);
+  let v=parseInt(el.value)+delta;
+  if(id==='block') v=Math.max(BLOCK_MIN,Math.min(BLOCK_MAX,v));
+  if(id==='sens')  v=Math.max(SENS_MIN, Math.min(SENS_MAX, v));
+  el.value=v;
+  document.getElementById(id+'val').textContent=v;
+  if(imgDU && topCV){
+    // ctrl 박스의 top 위치를 기준으로 스크롤 복원
+    const ctrlEl=document.getElementById('ctrl');
+    const ctrlTop=ctrlEl.getBoundingClientRect().top+window.scrollY;
+    setLoading(true); showErr('');
+    setSt('재분석 중...');
+    autoAnalyze(parseInt(document.getElementById('sens').value), 0, ()=>{
+      requestAnimationFrame(()=>window.scrollTo({top:ctrlTop,behavior:'instant'}));
+    });
+  }
+}
+
+window.addEventListener('resize',()=>{if(regions.length) renderCurrentTab();});
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>

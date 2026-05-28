@@ -171,6 +171,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
       <div class="cv-title" style="margin-top:10px">아래 그림</div>
       <div class="cvwrap"><canvas id="cv-bot-k"></canvas></div>
       <button class="save-btn" onclick="saveCanvas('cv-bot-k','아래그림.png')">⬇ 아래 그림 저장</button>
+      <button class="save-btn" onclick="saveFullCanvas('전체그림.png')" style="margin-top:10px;color:#34C759;border-color:#34C759">⬇ 전체 사진 저장 (위+아래)</button>
     </div>
     <div class="panel" id="panel-blink">
       <div class="cvwrap"><canvas id="cv-blink"></canvas></div>
@@ -779,6 +780,40 @@ function stepVal(id, delta){
 }
 
 window.addEventListener('resize',()=>{if(regions.length) renderCurrentTab();});
+
+async function saveFullCanvas(filename){
+  if(!topCV||!botCV) return;
+  const gap=12;
+  const saveCV=document.createElement('canvas');
+  saveCV.width=IW; saveCV.height=IH*2+gap;
+  const sctx=saveCV.getContext('2d');
+  sctx.fillStyle='#111';
+  sctx.fillRect(0,0,IW,IH*2+gap);
+  sctx.imageSmoothingEnabled=true;sctx.imageSmoothingQuality='high';
+  sctx.drawImage(topCV,0,0);
+  drawMarkers(sctx,IW,IH,-1,IW,IH);
+  sctx.save();
+  sctx.translate(0,IH+gap);
+  sctx.drawImage(botCV,0,0);
+  drawMarkers(sctx,IW,IH,-1,IW,IH);
+  sctx.restore();
+  if(navigator.share&&navigator.canShare){
+    try{
+      const blob=await new Promise(res=>saveCV.toBlob(res,'image/png'));
+      const file=new File([blob],filename,{type:'image/png'});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({files:[file],title:filename});
+        return;
+      }
+    }catch(e){
+      if(e.name==='AbortError') return;
+    }
+  }
+  const a=document.createElement('a');
+  a.href=saveCV.toDataURL('image/png');
+  a.download=filename;
+  a.click();
+}
 
 async function saveCanvas(cvId, filename){
   // 원본 해상도 캔버스에서 직접 저장 (마커 포함)

@@ -567,17 +567,23 @@ function makeDesc(r,tpx,bpx,fw,fh){
 function buildDiffCanvas(){
   const cv=document.getElementById('cv-diff');
   const wrap=cv.parentElement;
+  const dpr=window.devicePixelRatio||1;
   const dw=wrap.clientWidth||600;
   const dh=Math.round(dw*IH/IW);
-  cv.width=dw;cv.height=dh;cv.style.width=dw+'px';cv.style.height=dh+'px';
+  cv.width=Math.round(dw*dpr);cv.height=Math.round(dh*dpr);
+  cv.style.width=dw+'px';cv.style.height=dh+'px';
   const ctx=cv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   ctx.drawImage(topCV,0,0,dw,dh);
   ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,dw,dh);
   if(lastBlockDiff){
-    const id2=ctx.createImageData(dw,dh);
+    // putImageData는 transform을 무시하므로 임시 캔버스에 먼저 그린 후 복사
+    const tmp=document.createElement('canvas');tmp.width=dw;tmp.height=dh;
+    const tctx=tmp.getContext('2d');
+    const id2=tctx.createImageData(dw,dh);
     const tpx=topCV.getContext('2d').getImageData(0,0,IW,IH).data;
     const scX=IW/dw,scY=IH/dh;
-    // 히트맵: 차이가 클수록 밝게
     let maxV=0;
     for(let i=0;i<lastBlockDiff.length;i++) if(lastBlockDiff[i]>maxV) maxV=lastBlockDiff[i];
     for(let y=0;y<dh;y++){
@@ -587,7 +593,6 @@ function buildDiffCanvas(){
         const di=(y*dw+x)*4;
         if(v>0){
           const si=(sy*IW+sx)*4;
-          // 차이 강도에 따라 원본 색상 + 강조
           const intensity=Math.min(1,v/maxV);
           id2.data[di]=Math.min(255,tpx[si]+intensity*80);
           id2.data[di+1]=tpx[si+1]*(1-intensity*0.5);
@@ -596,7 +601,8 @@ function buildDiffCanvas(){
         }
       }
     }
-    ctx.putImageData(id2,0,0);
+    tctx.putImageData(id2,0,0);
+    ctx.drawImage(tmp,0,0,dw,dh);
   }
   drawMarkers(ctx,dw,dh,-1,IW,IH);
 }
@@ -604,10 +610,14 @@ function buildDiffCanvas(){
 function drawToCanvas(cvId,srcCanvas,hl){
   const cv=document.getElementById(cvId);if(!cv||!srcCanvas) return;
   const wrap=cv.parentElement;
+  const dpr=window.devicePixelRatio||1;
   const dw=wrap.clientWidth||wrap.offsetWidth||600;
   const dh=Math.round(dw*IH/IW);
-  cv.width=dw;cv.height=dh;cv.style.width=dw+'px';cv.style.height=dh+'px';
+  cv.width=Math.round(dw*dpr);cv.height=Math.round(dh*dpr);
+  cv.style.width=dw+'px';cv.style.height=dh+'px';
   const ctx=cv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   ctx.drawImage(srcCanvas,0,0,dw,dh);
   drawMarkers(ctx,dw,dh,hl,IW,IH);
 
@@ -682,10 +692,14 @@ function startBlink(){
   if(!topCV||!botCV) return;
   const cv=document.getElementById('cv-blink');
   const wrap=cv.parentElement;
+  const dpr=window.devicePixelRatio||1;
   const dw=wrap.clientWidth||wrap.offsetWidth||600;
   const dh=Math.round(dw*IH/IW);
-  cv.width=dw;cv.height=dh;cv.style.width=dw+'px';cv.style.height=dh+'px';
+  cv.width=Math.round(dw*dpr);cv.height=Math.round(dh*dpr);
+  cv.style.width=dw+'px';cv.style.height=dh+'px';
   const ctx=cv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   let showTop=true;
   const draw=()=>{
     ctx.clearRect(0,0,dw,dh);
@@ -767,11 +781,26 @@ function stepVal(id, delta){
 window.addEventListener('resize',()=>{if(regions.length) renderCurrentTab();});
 
 async function saveCanvas(cvId, filename){
-  const cv=document.getElementById(cvId);
-  if(!cv||cv.width===0) return;
-  if(navigator.share && navigator.canShare){
+  // 원본 해상도 캔버스에서 직접 저장 (마커 포함)
+  const srcMap={'cv-top-k':()=>topCV,'cv-bot-k':()=>botCV,
+                'cv-top-s':()=>topCV,'cv-bot-s':()=>botCV};
+  const getSrc=srcMap[cvId];
+  let saveCV;
+  if(getSrc&&getSrc()){
+    const src=getSrc();
+    saveCV=document.createElement('canvas');
+    saveCV.width=IW;saveCV.height=IH;
+    const sctx=saveCV.getContext('2d');
+    sctx.imageSmoothingEnabled=true;sctx.imageSmoothingQuality='high';
+    sctx.drawImage(src,0,0);
+    drawMarkers(sctx,IW,IH,-1,IW,IH);
+  } else {
+    saveCV=document.getElementById(cvId);
+  }
+  if(!saveCV||saveCV.width===0) return;
+  if(navigator.share&&navigator.canShare){
     try{
-      const blob=await new Promise(res=>cv.toBlob(res,'image/png'));
+      const blob=await new Promise(res=>saveCV.toBlob(res,'image/png'));
       const file=new File([blob],filename,{type:'image/png'});
       if(navigator.canShare({files:[file]})){
         await navigator.share({files:[file],title:filename});
@@ -782,7 +811,7 @@ async function saveCanvas(cvId, filename){
     }
   }
   const a=document.createElement('a');
-  a.href=cv.toDataURL('image/png');
+  a.href=saveCV.toDataURL('image/png');
   a.download=filename;
   a.click();
 }

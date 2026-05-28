@@ -633,12 +633,12 @@ function drawToCanvas(cvId,srcCanvas,hl){
   };
 }
 
-function drawMarkers(ctx,dw,dh,hl,fw,fh){
+function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
   const sx=dw/fw, sy=dh/fh;
   regions.forEach((r,i)=>{
     const dim=(hl!==-1&&i!==hl);
     const lw=Math.max(2,dw/350);
-    const rs=Math.max(14,dw/70);
+    const rs=rsOvr!==undefined ? rsOvr : Math.max(11,dw/80);
     const bx1=r.x1*sx, by1=r.y1*sy;
     const bx2=r.x2*sx, by2=r.y2*sy;
 
@@ -781,9 +781,15 @@ function stepVal(id, delta){
 
 window.addEventListener('resize',()=>{if(regions.length) renderCurrentTab();});
 
+function saveRs(){
+  const refW=document.querySelector('#cv-top-k')?.parentElement?.clientWidth||390;
+  return Math.max(11,refW/80) * IW / refW;
+}
+
 async function saveFullCanvas(filename){
   if(!topCV||!botCV) return;
   const gap=12;
+  const rs=saveRs();
   const saveCV=document.createElement('canvas');
   saveCV.width=IW; saveCV.height=IH*2+gap;
   const sctx=saveCV.getContext('2d');
@@ -791,11 +797,11 @@ async function saveFullCanvas(filename){
   sctx.fillRect(0,0,IW,IH*2+gap);
   sctx.imageSmoothingEnabled=true;sctx.imageSmoothingQuality='high';
   sctx.drawImage(topCV,0,0);
-  drawMarkers(sctx,IW,IH,-1,IW,IH);
+  drawMarkers(sctx,IW,IH,-1,IW,IH,rs);
   sctx.save();
   sctx.translate(0,IH+gap);
   sctx.drawImage(botCV,0,0);
-  drawMarkers(sctx,IW,IH,-1,IW,IH);
+  drawMarkers(sctx,IW,IH,-1,IW,IH,rs);
   sctx.restore();
   if(navigator.share&&navigator.canShare){
     try{
@@ -828,7 +834,7 @@ async function saveCanvas(cvId, filename){
     const sctx=saveCV.getContext('2d');
     sctx.imageSmoothingEnabled=true;sctx.imageSmoothingQuality='high';
     sctx.drawImage(src,0,0);
-    drawMarkers(sctx,IW,IH,-1,IW,IH);
+    drawMarkers(sctx,IW,IH,-1,IW,IH,saveRs());
   } else {
     saveCV=document.getElementById(cvId);
   }

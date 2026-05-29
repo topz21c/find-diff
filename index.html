@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.24</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.25</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -701,33 +701,68 @@ function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
     return {numX,numY,bx1,by1,bx2,by2};
   });
 
-  // 2패스: 위치 조정 (최대 15회)
-  // ① 배지가 다른 박스와 겹치면 → 그 박스 바깥으로 밀기 (사용자 제안)
-  // 박스 회피 함수 — 수렴할 때까지 반복 (배지가 밀려나 다른 박스로 들어가는 연쇄 처리)
+  // 배지가 몇 개의 박스와 겹치는지 계산
+  const boxOvlp=(x,y)=>{
+    let n=0;
+    for(let j=0;j<badges.length;j++){
+      const B=badges[j];
+      const cx=Math.max(B.bx1,Math.min(B.bx2,x));
+      const cy=Math.max(B.by1,Math.min(B.by2,y));
+      if((x-cx)*(x-cx)+(y-cy)*(y-cy)<br*br) n++;
+    }
+    return n;
+  };
+  // 박스 회피 — 겹침 수가 줄어드는 방향으로만 이동 (진동 방지)
   const pushOutBoxes=()=>{
     for(let pass=0;pass<badges.length*2+2;pass++){
       let anyMoved=false;
       for(let i=0;i<badges.length;i++){
+        const px=badges[i].numX, py=badges[i].numY;
+        const cur=boxOvlp(px,py);
+        if(cur===0) continue;
+        // 현재 겹치는 모든 박스에서 4방향 탈출 후보 수집
+        const cands=[];
         for(let j=0;j<badges.length;j++){
           const B=badges[j];
-          const px=badges[i].numX, py=badges[i].numY;
           const cx=Math.max(B.bx1,Math.min(B.bx2,px));
           const cy=Math.max(B.by1,Math.min(B.by2,py));
           if((px-cx)*(px-cx)+(py-cy)*(py-cy)<br*br){
-            anyMoved=true;
-            const dT=Math.abs(py-(B.by1-br-1));
-            const dB=Math.abs(py-(B.by2+br+1));
-            const dL=Math.abs(px-(B.bx1-br-1));
-            const dR=Math.abs(px-(B.bx2+br+1));
-            const m=Math.min(dT,dB,dL,dR);
-            if(m===dT)      badges[i].numY=Math.max(br,B.by1-br-1);
-            else if(m===dB) badges[i].numY=Math.min(dh-br,B.by2+br+1);
-            else if(m===dL) badges[i].numX=Math.max(br,B.bx1-br-1);
-            else            badges[i].numX=Math.min(dw-br,B.bx2+br+1);
+            cands.push(
+              {x:px,                       y:Math.max(br,B.by1-br-1)},
+              {x:px,                       y:Math.min(dh-br,B.by2+br+1)},
+              {x:Math.max(br,B.bx1-br-1), y:py},
+              {x:Math.min(dw-br,B.bx2+br+1),y:py}
+            );
           }
         }
+        // 겹침 수가 현재보다 줄어드는 후보만 적용 → 진동 원천 차단
+        let best=null, bestS=cur;
+        for(const c of cands){
+          const s=boxOvlp(c.x,c.y);
+          if(s<bestS){bestS=s;best=c;}
+        }
+        if(best){anyMoved=true;badges[i].numX=best.x;badges[i].numY=best.y;}
       }
       if(!anyMoved) break;
+    }
+    // 여전히 박스 안에 있으면 자기 박스 중심 기준 3배 거리 fallback
+    for(let i=0;i<badges.length;i++){
+      if(boxOvlp(badges[i].numX,badges[i].numY)===0) continue;
+      const {bx1,by1,bx2,by2}=badges[i];
+      const mx=(bx1+bx2)/2, my=(by1+by2)/2, ext=br*3;
+      const fb=[
+        {x:mx,              y:Math.max(br,by1-ext)},
+        {x:mx,              y:Math.min(dh-br,by2+ext)},
+        {x:Math.max(br,bx1-ext),    y:my},
+        {x:Math.min(dw-br,bx2+ext), y:my},
+        {x:Math.max(br,bx1-ext),    y:Math.max(br,by1-ext)},
+        {x:Math.min(dw-br,bx2+ext), y:Math.max(br,by1-ext)},
+        {x:Math.max(br,bx1-ext),    y:Math.min(dh-br,by2+ext)},
+        {x:Math.min(dw-br,bx2+ext), y:Math.min(dh-br,by2+ext)},
+      ];
+      for(const c of fb){
+        if(boxOvlp(c.x,c.y)===0){badges[i].numX=c.x;badges[i].numY=c.y;break;}
+      }
     }
   };
 
@@ -1167,6 +1202,12 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.25</span><span class="rn-date">2026-05-29</span>
+      <ul class="rn-list">
+        <li>번호 배지 진동 문제 근본 수정 — 겹침 수가 줄어드는 방향으로만 이동해 박스 A↔B 진동 원천 차단, 막힐 경우 3배 거리 fallback 추가</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.24</span><span class="rn-date">2026-05-29</span>

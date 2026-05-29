@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.23</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.24</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -703,26 +703,31 @@ function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
 
   // 2패스: 위치 조정 (최대 15회)
   // ① 배지가 다른 박스와 겹치면 → 그 박스 바깥으로 밀기 (사용자 제안)
-  // 박스 회피 함수 (어떤 박스 안에도 배지가 들어가면 안 됨)
+  // 박스 회피 함수 — 수렴할 때까지 반복 (배지가 밀려나 다른 박스로 들어가는 연쇄 처리)
   const pushOutBoxes=()=>{
-    for(let i=0;i<badges.length;i++){
-      for(let j=0;j<badges.length;j++){
-        const B=badges[j];
-        const px=badges[i].numX, py=badges[i].numY;
-        const cx=Math.max(B.bx1,Math.min(B.bx2,px));
-        const cy=Math.max(B.by1,Math.min(B.by2,py));
-        if((px-cx)*(px-cx)+(py-cy)*(py-cy)<br*br){
-          const dT=Math.abs(py-(B.by1-br-1));
-          const dB=Math.abs(py-(B.by2+br+1));
-          const dL=Math.abs(px-(B.bx1-br-1));
-          const dR=Math.abs(px-(B.bx2+br+1));
-          const m=Math.min(dT,dB,dL,dR);
-          if(m===dT)      badges[i].numY=Math.max(br,B.by1-br-1);
-          else if(m===dB) badges[i].numY=Math.min(dh-br,B.by2+br+1);
-          else if(m===dL) badges[i].numX=Math.max(br,B.bx1-br-1);
-          else            badges[i].numX=Math.min(dw-br,B.bx2+br+1);
+    for(let pass=0;pass<badges.length*2+2;pass++){
+      let anyMoved=false;
+      for(let i=0;i<badges.length;i++){
+        for(let j=0;j<badges.length;j++){
+          const B=badges[j];
+          const px=badges[i].numX, py=badges[i].numY;
+          const cx=Math.max(B.bx1,Math.min(B.bx2,px));
+          const cy=Math.max(B.by1,Math.min(B.by2,py));
+          if((px-cx)*(px-cx)+(py-cy)*(py-cy)<br*br){
+            anyMoved=true;
+            const dT=Math.abs(py-(B.by1-br-1));
+            const dB=Math.abs(py-(B.by2+br+1));
+            const dL=Math.abs(px-(B.bx1-br-1));
+            const dR=Math.abs(px-(B.bx2+br+1));
+            const m=Math.min(dT,dB,dL,dR);
+            if(m===dT)      badges[i].numY=Math.max(br,B.by1-br-1);
+            else if(m===dB) badges[i].numY=Math.min(dh-br,B.by2+br+1);
+            else if(m===dL) badges[i].numX=Math.max(br,B.bx1-br-1);
+            else            badges[i].numX=Math.min(dw-br,B.bx2+br+1);
+          }
         }
       }
+      if(!anyMoved) break;
     }
   };
 
@@ -1162,6 +1167,12 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.24</span><span class="rn-date">2026-05-29</span>
+      <ul class="rn-list">
+        <li>번호 배지 박스 회피 로직 근본 수정 — 인접 박스 연쇄 충돌을 완전히 해결하도록 수렴할 때까지 반복 처리</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.23</span><span class="rn-date">2026-05-29</span>

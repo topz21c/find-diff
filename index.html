@@ -667,7 +667,7 @@ function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
     ctx.beginPath(); ctx.arc(numX,numY,rs,0,Math.PI*2);
     ctx.fillStyle=r.color; ctx.fill();
     ctx.fillStyle='#fff';
-    ctx.font=`bold ${Math.round(rs*1.1)}px sans-serif`;
+    ctx.font=`bold ${Math.round(rs*1.5)}px sans-serif`;
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(i+1,numX,numY);
     ctx.globalAlpha=1;

@@ -84,13 +84,26 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 .save-btn{width:100%;padding:9px;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#007AFF;margin-top:6px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
 .save-btn:hover{background:#f0f7ff;border-color:#007AFF}
 .save-btn:active{transform:scale(0.98)}
+.rn-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;padding:20px;overflow-y:auto}
+.rn-overlay.on{display:flex;align-items:flex-start;justify-content:center}
+.rn-box{background:#fff;border-radius:16px;padding:20px 20px 24px;max-width:420px;width:100%;margin:auto}
+.rn-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.rn-head h2{font-size:17px;font-weight:700}
+.rn-close{background:none;border:none;font-size:24px;cursor:pointer;color:#999;line-height:1;padding:0}
+.rn-entry{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f0f0f0}
+.rn-entry:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.rn-ver{font-size:13px;font-weight:700;color:#007AFF;display:inline}
+.rn-date{font-size:11px;color:#aaa;display:inline;margin-left:8px}
+.rn-list{list-style:none;padding:0;margin:5px 0 0}
+.rn-list li{font-size:13px;color:#444;padding:2px 0 2px 14px;position:relative;line-height:1.4}
+.rn-list li::before{content:'·';position:absolute;left:2px;color:#007AFF;font-weight:700}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>🔍 틀린 그림 찾기</h1>
   <div class="sub">이미지를 업로드하면 픽셀 비교로 차이점을 자동으로 찾아냅니다</div>
-  <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;">created by topz</div>
+  <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
     <div class="ico">📸</div>
@@ -857,6 +870,64 @@ async function saveCanvas(cvId, filename){
   a.click();
 }
 </script>
+
+<div class="rn-overlay" id="rn-overlay" onclick="if(event.target===this)this.classList.remove('on')">
+  <div class="rn-box">
+    <div class="rn-head">
+      <h2>업데이트 내역</h2>
+      <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.6</span><span class="rn-date">2026-05-29</span>
+      <ul class="rn-list">
+        <li>마커 번호 원·폰트 크기 조정</li>
+        <li>화면과 저장 이미지의 마커 크기 비율 일치</li>
+        <li>릴리스 노트 추가</li>
+      </ul>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.5</span><span class="rn-date">2026-05-28</span>
+      <ul class="rn-list">
+        <li>전체 사진 저장 버튼 추가 — 위+아래 합본 1장으로 저장</li>
+      </ul>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.4</span><span class="rn-date">2026-05-28</span>
+      <ul class="rn-list">
+        <li>PWA 홈 화면 앱 업데이트 자동 반영 수정</li>
+      </ul>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.3</span><span class="rn-date">2026-05-28</span>
+      <ul class="rn-list">
+        <li>고DPI/Retina 화면 선명도 개선 (devicePixelRatio 반영)</li>
+        <li>저장 이미지를 원본 해상도로 품질 향상</li>
+      </ul>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.2</span><span class="rn-date">2026-05-28</span>
+      <ul class="rn-list">
+        <li>저장 버튼 → 모바일에서 사진첩 기본 저장 (공유 시트 연동)</li>
+      </ul>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.1</span><span class="rn-date">2026-05-28</span>
+      <ul class="rn-list">
+        <li>위아래 탭에 위/아래 그림 PNG 저장 버튼 추가</li>
+        <li>마커 가시성 개선 — 3중 레이어로 어떤 배경에서도 뚜렷하게</li>
+      </ul>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.0</span><span class="rn-date">2026-05-27</span>
+      <ul class="rn-list">
+        <li>최초 출시</li>
+        <li>이미지 픽셀 비교로 틀린 그림 자동 탐지</li>
+        <li>좌우 비교 / 위아래 / 깜빡임 / 차이 강조 4가지 뷰</li>
+        <li>자동 감도 조절 (5개 차이점 목표)</li>
+      </ul>
+    </div>
+  </div>
+</div>
 
 <script>
 if('serviceWorker' in navigator){

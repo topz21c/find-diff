@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.17</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.18</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -689,54 +689,42 @@ function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
   const sx=dw/fw, sy=dh/fh;
   const lw=Math.max(1.5,dw/500);
   const rs=rsOvr!==undefined ? rsOvr : Math.max(11,dw/80);
-  const bd=rs+4; // 배지 유효 반지름 (그림자 포함)
-  const minD=bd*2+16; // 최소 중심 거리 (시각적 여백 확보)
+  const minD=(rs+3)*2+8; // 최소 중심 거리
 
-  // 1패스: 그리디 배치 — 후보 위치(근거리+원거리 12개) 중 기존 배지와 안 겹치는 첫 위치 선택
-  const placed=[];
+  // 1패스: 초기 위치 — 박스 위 중앙 (화면 밖이면 아래)
   const badges=regions.map(r=>{
     const bx1=r.x1*sx, by1=r.y1*sy, bx2=r.x2*sx, by2=r.y2*sy;
-    const bcx=(bx1+bx2)/2, bcy=(by1+by2)/2;
-    const o1=bd+lw+2, o2=o1*2.2; // 근거리/원거리 오프셋
-    const cands=[
-      [bcx,     by1-o1],   // 위 중앙 근거리 (1순위)
-      [bcx,     by1-o2],   // 위 중앙 원거리
-      [bcx,     by2+o1],   // 아래 중앙 근거리
-      [bcx,     by2+o2],   // 아래 중앙 원거리
-      [bx1-o1,  by1-o1],   // 좌상
-      [bx2+o1,  by1-o1],   // 우상
-      [bx1-o1,  bcy   ],   // 좌 중간
-      [bx2+o1,  bcy   ],   // 우 중간
-      [bx1-o2,  by1-o1],   // 좌 원거리 상
-      [bx2+o2,  by1-o1],   // 우 원거리 상
-      [bx1-o1,  by2+o1],   // 좌하
-      [bx2+o1,  by2+o1],   // 우하
-    ].map(([x,y])=>[
-      Math.max(bd,Math.min(dw-bd,x)),
-      Math.max(bd,Math.min(dh-bd,y))
-    ]);
-    let best=cands[0];
-    outer:for(const c of cands){
-      for(const p of placed){
-        const dx=c[0]-p[0], dy=c[1]-p[1];
-        if(dx*dx+dy*dy<minD*minD) continue outer;
-      }
-      best=c; break;
-    }
-    // 모든 후보 실패 시 기존 배치와 가장 먼 후보 선택
-    if(placed.length>0 && best===cands[0]){
-      let maxMin=0;
-      for(const c of cands){
-        let minDist=Infinity;
-        for(const p of placed){const dx=c[0]-p[0],dy=c[1]-p[1];minDist=Math.min(minDist,dx*dx+dy*dy);}
-        if(minDist>maxMin){maxMin=minDist;best=c;}
-      }
-    }
-    placed.push(best);
-    return {numX:best[0],numY:best[1],bx1,by1,bx2,by2};
+    const numX=(bx1+bx2)/2;
+    let numY=by1-rs-lw-2;
+    if(numY<rs+3) numY=by2+rs+lw+2;
+    return {numX, numY, bx1, by1, bx2, by2};
   });
 
-  // 2패스: 그리기
+  // 2패스: Y축 밀기로 겹침 해소 — X는 고정, 위아래로만 밀어서 박스 근처 유지 (최대 30회)
+  for(let iter=0;iter<30;iter++){
+    let moved=false;
+    for(let a=0;a<badges.length;a++){
+      for(let b=a+1;b<badges.length;b++){
+        const dx=badges[b].numX-badges[a].numX;
+        const dy=badges[b].numY-badges[a].numY;
+        if(dx*dx+dy*dy<minD*minD){
+          moved=true;
+          const neededY=Math.sqrt(Math.max(0,minD*minD-dx*dx));
+          const yPush=(neededY-Math.abs(dy))/2+1;
+          if(badges[a].numY<=badges[b].numY){
+            badges[a].numY=Math.max(rs+3, badges[a].numY-yPush);
+            badges[b].numY=Math.min(dh-rs-3, badges[b].numY+yPush);
+          } else {
+            badges[a].numY=Math.min(dh-rs-3, badges[a].numY+yPush);
+            badges[b].numY=Math.max(rs+3, badges[b].numY-yPush);
+          }
+        }
+      }
+    }
+    if(!moved) break;
+  }
+
+  // 3패스: 그리기
   regions.forEach((r,i)=>{
     const dim=(hl!==-1&&i!==hl);
     const {numX,numY,bx1,by1,bx2,by2}=badges[i];
@@ -1146,6 +1134,12 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.18</span><span class="rn-date">2026-05-29</span>
+      <ul class="rn-list">
+        <li>번호 배지 위치 알고리즘 재설계 — X축 고정(박스 중앙 정렬) 후 Y축만 밀기 방식으로 박스 근처 유지하면서 겹침 해소</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.17</span><span class="rn-date">2026-05-29</span>

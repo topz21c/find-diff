@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.15</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.16</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -146,7 +146,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
         <button class="step-btn" onclick="stepVal('block',2)">▶</button>
         <button class="step-btn" onclick="resetBlock()" title="초기화" style="font-size:13px">↺</button>
       </div>
-      <span class="step-hint">세밀 ← → 빠름</span>
+
     </div>
     <div class="hint" style="margin-top:8px">
       원하는 결과가 나오지 않으면 블록 크기를 변경해보세요
@@ -687,15 +687,46 @@ function drawToCanvas(cvId,srcCanvas,hl){
 
 function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
   const sx=dw/fw, sy=dh/fh;
+  const lw=Math.max(1.5,dw/500);
+  const rs=rsOvr!==undefined ? rsOvr : Math.max(11,dw/80);
+
+  // 1패스: 초기 배지 위치 계산
+  const badges=regions.map(r=>{
+    const bx1=r.x1*sx, by1=r.y1*sy, bx2=r.x2*sx, by2=r.y2*sy;
+    let numX=(bx1+bx2)/2;
+    let numY=by1-rs-lw-2;
+    if(numY<rs+3) numY=by2+rs+lw+2;
+    return {numX,numY,bx1,by1,bx2,by2};
+  });
+
+  // 2패스: 겹침 해소 (최대 20회 반복)
+  const minDist=(rs+3)*2+2;
+  for(let iter=0;iter<20;iter++){
+    let moved=false;
+    for(let a=0;a<badges.length;a++){
+      for(let b=a+1;b<badges.length;b++){
+        const dx=badges[b].numX-badges[a].numX;
+        const dy=badges[b].numY-badges[a].numY;
+        const dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist<minDist){
+          moved=true;
+          const push=(minDist-dist)/2+1;
+          const nx=dist>0?dx/dist:0, ny=dist>0?dy/dist:1;
+          badges[a].numX=Math.max(rs+3,Math.min(dw-rs-3,badges[a].numX-nx*push));
+          badges[a].numY=Math.max(rs+3,Math.min(dh-rs-3,badges[a].numY-ny*push));
+          badges[b].numX=Math.max(rs+3,Math.min(dw-rs-3,badges[b].numX+nx*push));
+          badges[b].numY=Math.max(rs+3,Math.min(dh-rs-3,badges[b].numY+ny*push));
+        }
+      }
+    }
+    if(!moved) break;
+  }
+
+  // 3패스: 그리기
   regions.forEach((r,i)=>{
     const dim=(hl!==-1&&i!==hl);
-    const lw=Math.max(1.5,dw/500);
-    const rs=rsOvr!==undefined ? rsOvr : Math.max(11,dw/80);
-    const bx1=r.x1*sx, by1=r.y1*sy;
-    const bx2=r.x2*sx, by2=r.y2*sy;
-
+    const {numX,numY,bx1,by1,bx2,by2}=badges[i];
     ctx.globalAlpha=dim?0.12:1;
-    // 어두운 외곽 → 흰 외곽 → 색상 테두리 순서로 겹쳐서 배경 무관 가시성 확보
     ctx.lineWidth=lw+2; ctx.strokeStyle='rgba(0,0,0,0.45)';
     ctx.strokeRect(bx1,by1,bx2-bx1,by2-by1);
     ctx.lineWidth=lw+1; ctx.strokeStyle='rgba(255,255,255,0.85)';
@@ -705,13 +736,7 @@ function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
     const[cr,cg,cb]=hexRgb(r.color);
     ctx.fillStyle=`rgba(${cr},${cg},${cb},0.1)`;
     ctx.fillRect(bx1,by1,bx2-bx1,by2-by1);
-
-    const numX=(bx1+bx2)/2;
-    let numY=by1-rs-lw-2;
-    if(numY<rs) numY=by2+rs+lw+2;
-
     ctx.globalAlpha=dim?0.15:1;
-    // 흰 외곽 원 → 색상 원 순서로 겹쳐서 배경과 구분
     ctx.beginPath(); ctx.arc(numX,numY,rs+3,0,Math.PI*2);
     ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.fill();
     ctx.beginPath(); ctx.arc(numX,numY,rs+1.5,0,Math.PI*2);
@@ -1107,6 +1132,12 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.16</span><span class="rn-date">2026-05-29</span>
+      <ul class="rn-list">
+        <li>번호 배지 겹침 방지 — 마커가 붙어있어도 번호 원이 겹치지 않도록 자동 위치 조정</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.15</span><span class="rn-date">2026-05-29</span>

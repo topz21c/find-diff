@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.25</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.26</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -692,105 +692,57 @@ function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
   const br=rs+3; // 배지 충돌 반지름
   const minD=br*2+2; // 배지간 최소 거리
 
-  // 1패스: 초기 위치 — 박스 위 중앙 (화면 밖이면 아래)
+  // 배지 박스 좌표 초기화
   const badges=regions.map(r=>{
     const bx1=r.x1*sx, by1=r.y1*sy, bx2=r.x2*sx, by2=r.y2*sy;
-    const numX=(bx1+bx2)/2;
-    let numY=by1-br-lw-2;
-    if(numY<br) numY=by2+br+lw+2;
-    return {numX,numY,bx1,by1,bx2,by2};
+    return {numX:0,numY:0,bx1,by1,bx2,by2};
   });
 
-  // 배지가 몇 개의 박스와 겹치는지 계산
-  const boxOvlp=(x,y)=>{
-    let n=0;
-    for(let j=0;j<badges.length;j++){
-      const B=badges[j];
-      const cx=Math.max(B.bx1,Math.min(B.bx2,x));
-      const cy=Math.max(B.by1,Math.min(B.by2,y));
-      if((x-cx)*(x-cx)+(y-cy)*(y-cy)<br*br) n++;
+  // 그리디 배치: 박스 충돌·배지간 충돌을 동시에 최소화하며 순서대로 배치
+  // — 각 배지를 배치할 때 이미 배치된 배지들을 고려 → 악순환(진동) 원천 차단
+  const placed=[];
+  for(let i=0;i<badges.length;i++){
+    const {bx1,by1,bx2,by2}=badges[i];
+    const mx=(bx1+bx2)/2, my=(by1+by2)/2;
+    // 5단계 거리 × 8방향 = 40개 후보 (가까운 순)
+    const cands=[];
+    for(const d of [br+2,br*2+4,br*3+6,br*4+8,br*5+10]){
+      cands.push(
+        {x:mx,                    y:Math.max(br,by1-d)},
+        {x:mx,                    y:Math.min(dh-br,by2+d)},
+        {x:Math.max(br,bx1-d),   y:my},
+        {x:Math.min(dw-br,bx2+d),y:my},
+        {x:Math.max(br,bx1-d),   y:Math.max(br,by1-d)},
+        {x:Math.min(dw-br,bx2+d),y:Math.max(br,by1-d)},
+        {x:Math.max(br,bx1-d),   y:Math.min(dh-br,by2+d)},
+        {x:Math.min(dw-br,bx2+d),y:Math.min(dh-br,by2+d)},
+      );
     }
-    return n;
-  };
-  // 박스 회피 — 겹침 수가 줄어드는 방향으로만 이동 (진동 방지)
-  const pushOutBoxes=()=>{
-    for(let pass=0;pass<badges.length*2+2;pass++){
-      let anyMoved=false;
-      for(let i=0;i<badges.length;i++){
-        const px=badges[i].numX, py=badges[i].numY;
-        const cur=boxOvlp(px,py);
-        if(cur===0) continue;
-        // 현재 겹치는 모든 박스에서 4방향 탈출 후보 수집
-        const cands=[];
-        for(let j=0;j<badges.length;j++){
-          const B=badges[j];
-          const cx=Math.max(B.bx1,Math.min(B.bx2,px));
-          const cy=Math.max(B.by1,Math.min(B.by2,py));
-          if((px-cx)*(px-cx)+(py-cy)*(py-cy)<br*br){
-            cands.push(
-              {x:px,                       y:Math.max(br,B.by1-br-1)},
-              {x:px,                       y:Math.min(dh-br,B.by2+br+1)},
-              {x:Math.max(br,B.bx1-br-1), y:py},
-              {x:Math.min(dw-br,B.bx2+br+1),y:py}
-            );
-          }
-        }
-        // 겹침 수가 현재보다 줄어드는 후보만 적용 → 진동 원천 차단
-        let best=null, bestS=cur;
-        for(const c of cands){
-          const s=boxOvlp(c.x,c.y);
-          if(s<bestS){bestS=s;best=c;}
-        }
-        if(best){anyMoved=true;badges[i].numX=best.x;badges[i].numY=best.y;}
+    let best=cands[0], bestBx=Infinity, bestBd=Infinity;
+    for(const c of cands){
+      // 박스 충돌 수
+      let bxC=0;
+      for(let j=0;j<badges.length;j++){
+        const B=badges[j];
+        const cx=Math.max(B.bx1,Math.min(B.bx2,c.x));
+        const cy=Math.max(B.by1,Math.min(B.by2,c.y));
+        if((c.x-cx)*(c.x-cx)+(c.y-cy)*(c.y-cy)<br*br) bxC++;
       }
-      if(!anyMoved) break;
-    }
-    // 여전히 박스 안에 있으면 자기 박스 중심 기준 3배 거리 fallback
-    for(let i=0;i<badges.length;i++){
-      if(boxOvlp(badges[i].numX,badges[i].numY)===0) continue;
-      const {bx1,by1,bx2,by2}=badges[i];
-      const mx=(bx1+bx2)/2, my=(by1+by2)/2, ext=br*3;
-      const fb=[
-        {x:mx,              y:Math.max(br,by1-ext)},
-        {x:mx,              y:Math.min(dh-br,by2+ext)},
-        {x:Math.max(br,bx1-ext),    y:my},
-        {x:Math.min(dw-br,bx2+ext), y:my},
-        {x:Math.max(br,bx1-ext),    y:Math.max(br,by1-ext)},
-        {x:Math.min(dw-br,bx2+ext), y:Math.max(br,by1-ext)},
-        {x:Math.max(br,bx1-ext),    y:Math.min(dh-br,by2+ext)},
-        {x:Math.min(dw-br,bx2+ext), y:Math.min(dh-br,by2+ext)},
-      ];
-      for(const c of fb){
-        if(boxOvlp(c.x,c.y)===0){badges[i].numX=c.x;badges[i].numY=c.y;break;}
+      // 배지 충돌 수 (이미 배치된 것만)
+      let bdC=0;
+      for(const p of placed){
+        const dx=c.x-p.x, dy=c.y-p.y;
+        if(dx*dx+dy*dy<minD*minD) bdC++;
+      }
+      // 박스 충돌 우선 최소화, 동점이면 배지 충돌 최소화
+      if(bxC<bestBx||(bxC===bestBx&&bdC<bestBd)){
+        bestBx=bxC; bestBd=bdC; best=c;
+        if(bxC===0&&bdC===0) break;
       }
     }
-  };
-
-  // 메인 루프: 배지-배지 분리 → 박스 회피 순서로 실행
-  for(let iter=0;iter<15;iter++){
-    let moved=false;
-    for(let a=0;a<badges.length;a++){
-      for(let b=a+1;b<badges.length;b++){
-        const dx=badges[b].numX-badges[a].numX;
-        const dy=badges[b].numY-badges[a].numY;
-        const dist=Math.sqrt(dx*dx+dy*dy)||0.01;
-        if(dist<minD){
-          moved=true;
-          const push=(minD-dist+2)/2;
-          const nx=dx/dist,ny=dy/dist;
-          badges[a].numX=Math.max(br,Math.min(dw-br,badges[a].numX-nx*push));
-          badges[a].numY=Math.max(br,Math.min(dh-br,badges[a].numY-ny*push));
-          badges[b].numX=Math.max(br,Math.min(dw-br,badges[b].numX+nx*push));
-          badges[b].numY=Math.max(br,Math.min(dh-br,badges[b].numY+ny*push));
-        }
-      }
-    }
-    // 배지-배지 밀기 후 즉시 박스 회피 — 배지가 박스 안으로 들어가는 것 차단
-    pushOutBoxes();
-    if(!moved) break;
+    badges[i].numX=best.x; badges[i].numY=best.y;
+    placed.push({x:best.x,y:best.y});
   }
-  // 최종 보장: 루프 후에도 박스 안에 배지가 없도록
-  for(let extra=0;extra<badges.length+1;extra++) pushOutBoxes();
 
   // 3패스: 그리기
   regions.forEach((r,i)=>{
@@ -1202,6 +1154,12 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.26</span><span class="rn-date">2026-05-29</span>
+      <ul class="rn-list">
+        <li>번호 배지 배치 알고리즘 전면 재설계 — 박스 회피·배지간 충돌을 그리디 1회 배치로 동시 해결, 진동 구조 원천 제거</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.25</span><span class="rn-date">2026-05-29</span>

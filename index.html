@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.9</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.10</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -942,30 +942,35 @@ async function runMultiBlockAnalysis(){
   if(!blurCache) return;
   const BLOCKS=[4,6,8,10,12,14,16,18,20,24,28,32];
   const curBlock=parseInt(document.getElementById('block').value);
+
+  // 현재 블록으로 autoAnalyze와 동일한 감도 보정 (감소 방향으로 5개 찾을 때까지)
+  for(const s of [40,37,34,31,28,25,22,19,16,13,10,7,4,2]){
+    lastAutoSens=s;
+    if(quickRegions(curBlock).length>=5) break;
+  }
+
   const all=[];
   for(const bs of BLOCKS){
     await new Promise(r=>setTimeout(r,0));
     const regs=quickRegions(bs);
-    if(regs.length) all.push({bs,regs});
+    if(regs.length) all.push({bs,regs,count:regs.length});
   }
   const groups=[];
-  for(const {bs,regs} of all){
+  for(const {bs,regs,count} of all){
     let placed=false;
     for(const g of groups){
       if(regsMatch(g.regs,regs)){g.sizes.push(bs);placed=true;break;}
     }
-    if(!placed) groups.push({sizes:[bs],regs,count:regs.length});
+    if(!placed) groups.push({sizes:[bs],regs,count});
   }
-  // 가장 많은 블록수를 가진 그룹 찾기 (동률이면 14에 가까운 쪽)
-  let bestGroup=null;
-  groups.forEach(g=>{
-    if(!bestGroup||g.sizes.length>bestGroup.sizes.length||
-       (g.sizes.length===bestGroup.sizes.length&&
-        Math.abs(closestTo14(g.sizes)-14)<Math.abs(closestTo14(bestGroup.sizes)-14))){
-      bestGroup=g;
-    }
-  });
-  const bestBlock=bestGroup?closestTo14(bestGroup.sizes):curBlock;
+  // 5개를 찾은 블록 크기 중 14에 가장 가까운 값 선택
+  // 없으면 가장 많이 찾은 블록 크기 중 14에 가장 가까운 값
+  const fiveBlocks=all.filter(x=>x.count===5).map(x=>x.bs);
+  const bestBlock=fiveBlocks.length>0
+    ? closestTo14(fiveBlocks)
+    : (all.length>0 ? closestTo14(all.map(x=>x.bs)) : curBlock);
+  // 표시용 bestGroup — bestBlock이 속한 그룹
+  const bestGroup=groups.find(g=>g.sizes.includes(bestBlock))||null;
 
   const body=document.getElementById('blk-body');
   const sec=document.getElementById('blk-section');
@@ -1084,6 +1089,13 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.10</span><span class="rn-date">2026-05-29</span>
+      <ul class="rn-list">
+        <li>최적 블록 선택 기준 변경 — 5개를 찾은 블록 크기 중 14에 가장 가까운 값으로 선택</li>
+        <li>블록 분석 전 감도 자동 보정으로 quickRegions 정확도 향상</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.9</span><span class="rn-date">2026-05-29</span>

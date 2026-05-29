@@ -709,7 +709,7 @@ function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
 
     for(let i=0;i<badges.length;i++){
       for(let j=0;j<badges.length;j++){
-        if(i===j) continue;
+        // 자기 박스 포함 모든 박스 체크 — 어떤 박스 안에도 숫자가 들어가면 안 됨
         const B=badges[j];
         const px=badges[i].numX, py=badges[i].numY;
         // 원-사각형 겹침 체크

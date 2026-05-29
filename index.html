@@ -84,6 +84,14 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 .save-btn{width:100%;padding:9px;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#007AFF;margin-top:6px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
 .save-btn:hover{background:#f0f7ff;border-color:#007AFF}
 .save-btn:active{transform:scale(0.98)}
+.blk-toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f5f5f3;border:1px solid #e0e0e0;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:#555;user-select:none}
+.blk-toggle:hover{background:#efefed}
+.blk-row{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border:1px solid #eee;border-radius:8px;margin-top:4px;font-size:12px;background:#fafafa}
+.blk-row.cur{border-color:#007AFF;background:#f0f7ff}
+.blk-badge{background:#555;color:#fff;border-radius:6px;padding:2px 7px;font-size:11px;white-space:nowrap;flex-shrink:0;margin-top:1px}
+.blk-badge.cur{background:#007AFF}
+.blk-cnt{font-weight:700;color:#007AFF;margin-right:4px}
+.blk-pos{color:#555}
 .rn-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;padding:20px;overflow-y:auto}
 .rn-overlay.on{display:flex;align-items:flex-start;justify-content:center}
 .rn-box{background:#fff;border-radius:16px;padding:20px 20px 24px;max-width:420px;width:100%;margin:auto}
@@ -132,6 +140,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
         <button class="step-btn" onclick="stepVal('block',-2)">◀</button>
         <span class="step-val" id="blockval">14</span>
         <button class="step-btn" onclick="stepVal('block',2)">▶</button>
+        <button class="step-btn" onclick="resetBlock()" title="초기화" style="font-size:13px">↺</button>
       </div>
       <span class="step-hint">세밀 ← → 빠름</span>
     </div>
@@ -185,6 +194,12 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
     <div class="dlist">
       <h3 id="dtitle"></h3>
       <div id="ditems"></div>
+      <div id="blk-section" style="display:none;margin-top:8px">
+        <div class="blk-toggle" onclick="toggleBlkDetail()">
+          <span>블록 크기별 분석</span><span id="blk-arrow">▼</span>
+        </div>
+        <div id="blk-body" style="display:none"></div>
+      </div>
       <button class="rbtn" onclick="resetAll()">↺ 새 이미지 분석</button>
     </div>
   </div>
@@ -195,6 +210,7 @@ const COLORS=['#FF3B30','#FF9500','#34C759','#007AFF','#AF52DE','#FF2D55','#00C7
 let imgDU='', topCV=null, botCV=null;
 let regions=[], activeIdx=-1, blinkTimer=null, IW=0, IH=0;
 let lastBlockDiff=null; // 차이 강조용 저장
+let blurCache=null, lastAutoSens=40;
 
 ['block','sens','maxreg'].forEach(id=>{
   document.getElementById(id).oninput=e=>document.getElementById(id+'val').textContent=e.target.value;
@@ -399,6 +415,7 @@ function doAnalyze(forceSens, forceFinal, callback, doneCallback){
       let drSum=0,dgSum=0,dbSum=0;
       for(let i=0;i<n;i++){drSum+=tRb[i]-bRb[i];dgSum+=tGb[i]-bGb[i];dbSum+=tBb[i]-bBb[i];}
       const drMean=drSum/n, dgMean=dgSum/n, dbMean=dbSum/n;
+      blurCache={tRb,tGb,tBb,bRb,bGb,bBb,drMean,dgMean,dbMean};
 
       // ── 6. 블록 단위 평균 비교 ──
       const BLOCK=parseInt(document.getElementById('block').value);
@@ -528,6 +545,7 @@ function doAnalyze(forceSens, forceFinal, callback, doneCallback){
         return;
       }
       // 최종 결과 표시
+      lastAutoSens=sens;
       buildList();
       document.getElementById('result').style.display='block';
       document.getElementById('rbadge').textContent=regions.length+'개 발견';
@@ -535,6 +553,7 @@ function doAnalyze(forceSens, forceFinal, callback, doneCallback){
       setSt('✅ '+regions.length+'개의 차이점을 발견했습니다!');
       setLoading(false);
       renderCurrentTab();
+      runMultiBlockAnalysis();
       if(doneCallback) doneCallback();
       else setTimeout(()=>document.getElementById('result').scrollIntoView({behavior:'smooth'}),200);
       if(callback) callback(regions.length);
@@ -747,7 +766,9 @@ function showErr(m){const e=document.getElementById('errbox');e.textContent=m;e.
 
 function resetAll(){
   if(blinkTimer){clearInterval(blinkTimer);blinkTimer=null;}
-  imgDU='';topCV=null;botCV=null;regions=[];activeIdx=-1;IW=0;IH=0;lastBlockDiff=null;
+  imgDU='';topCV=null;botCV=null;regions=[];activeIdx=-1;IW=0;IH=0;lastBlockDiff=null;blurCache=null;lastAutoSens=40;
+  document.getElementById('blk-section').style.display='none';
+  document.getElementById('blk-body').innerHTML='';
   dz.style.display='block';
   document.getElementById('prev-wrap').style.display='none';
   document.getElementById('prev-img').src='';
@@ -783,6 +804,151 @@ function stepVal(id, delta){
 }
 
 window.addEventListener('resize',()=>{if(regions.length) renderCurrentTab();});
+
+function resetBlock(){
+  const el=document.getElementById('block');
+  el.value=14; document.getElementById('blockval').textContent=14;
+  if(imgDU&&topCV){
+    const ctrlEl=document.getElementById('ctrl');
+    const ctrlTop=ctrlEl.getBoundingClientRect().top+window.scrollY;
+    setLoading(true); showErr(''); setSt('재분석 중...');
+    autoAnalyze(parseInt(document.getElementById('sens').value),0,()=>{
+      requestAnimationFrame(()=>window.scrollTo({top:ctrlTop,behavior:'instant'}));
+    });
+  }
+}
+
+function quickRegions(blockSize){
+  if(!blurCache||!IW||!IH) return [];
+  const {tRb,tGb,tBb,bRb,bGb,bBb,drMean,dgMean,dbMean}=blurCache;
+  const fw=IW,fh=IH,BLOCK=blockSize,sens=lastAutoSens;
+  const bh=Math.floor(fh/BLOCK),bw2=Math.floor(fw/BLOCK);
+  const blockDiffMap=new Float32Array(fh*fw);
+  for(let by=0;by<bh;by++){
+    for(let bx=0;bx<bw2;bx++){
+      let dr=0,dg=0,db=0,cnt=0;
+      for(let dy=0;dy<BLOCK;dy++){
+        for(let dx=0;dx<BLOCK;dx++){
+          const y=by*BLOCK+dy,x=bx*BLOCK+dx;
+          if(y>=fh||x>=fw) continue;
+          const i=y*fw+x;
+          dr+=Math.abs((tRb[i]-bRb[i])-drMean);
+          dg+=Math.abs((tGb[i]-bGb[i])-dgMean);
+          db+=Math.abs((tBb[i]-bBb[i])-dbMean);
+          cnt++;
+        }
+      }
+      const val=(Math.max(dr,dg,db)/cnt)*0.6+((dr+dg+db)/(3*cnt))*0.4;
+      if(val>sens){
+        for(let dy=0;dy<BLOCK;dy++){
+          for(let dx=0;dx<BLOCK;dx++){
+            const y=by*BLOCK+dy,x=bx*BLOCK+dx;
+            if(y<fh&&x<fw) blockDiffMap[y*fw+x]=val;
+          }
+        }
+      }
+    }
+  }
+  const visitedB=new Uint8Array(bh*bw2),hotBlocks=new Uint8Array(bh*bw2);
+  const blockDiff=new Float32Array(bh*bw2);
+  for(let by=0;by<bh;by++){
+    for(let bx=0;bx<bw2;bx++){
+      blockDiff[by*bw2+bx]=blockDiffMap[by*BLOCK*fw+bx*BLOCK];
+      if(blockDiff[by*bw2+bx]>0) hotBlocks[by*bw2+bx]=1;
+    }
+  }
+  const rawRegions=[];
+  for(let by=0;by<bh;by++){
+    for(let bx=0;bx<bw2;bx++){
+      const idx=by*bw2+bx;
+      if(!hotBlocks[idx]||visitedB[idx]) continue;
+      const q=[[bx,by]]; visitedB[idx]=1;
+      let x1=bx,y1=by,x2=bx,y2=by,cnt=0,peakV=0;
+      while(q.length){
+        const[cx,cy]=q.shift(); cnt++;
+        if(blockDiff[cy*bw2+cx]>peakV) peakV=blockDiff[cy*bw2+cx];
+        x1=Math.min(x1,cx);y1=Math.min(y1,cy);x2=Math.max(x2,cx);y2=Math.max(y2,cy);
+        for(const[dx,dy] of[[-1,0],[1,0],[0,-1],[0,1]]){
+          const nx=cx+dx,ny=cy+dy;
+          if(nx<0||nx>=bw2||ny<0||ny>=bh) continue;
+          const ni=ny*bw2+nx;
+          if(!hotBlocks[ni]||visitedB[ni]) continue;
+          visitedB[ni]=1; q.push([nx,ny]);
+        }
+      }
+      if(cnt>=2) rawRegions.push({x1:x1*BLOCK,y1:y1*BLOCK,x2:Math.min(fw,(x2+1)*BLOCK),y2:Math.min(fh,(y2+1)*BLOCK),cnt,peakV});
+    }
+  }
+  rawRegions.sort((a,b)=>b.peakV-a.peakV);
+  const GAP=BLOCK*2,merged=[];
+  for(const r of rawRegions){
+    let found=false;
+    for(const m of merged){
+      if(r.x1<=m.x2+GAP&&r.x2>=m.x1-GAP&&r.y1<=m.y2+GAP&&r.y2>=m.y1-GAP){
+        m.x1=Math.min(m.x1,r.x1);m.y1=Math.min(m.y1,r.y1);
+        m.x2=Math.max(m.x2,r.x2);m.y2=Math.max(m.y2,r.y2);
+        m.cnt+=r.cnt; m.peakV=Math.max(m.peakV,r.peakV); found=true; break;
+      }
+    }
+    if(!found) merged.push({...r});
+  }
+  merged.sort((a,b)=>b.peakV-a.peakV);
+  const maxBoxArea=fw*fh*0.02;
+  return merged.filter(r=>(r.x2-r.x1)*(r.y2-r.y1)<maxBoxArea).slice(0,5)
+    .map(r=>({rx:(r.x1+r.x2)/2/fw, ry:(r.y1+r.y2)/2/fh}));
+}
+
+function regsMatch(a,b){
+  if(a.length!==b.length) return false;
+  const thr=0.08;
+  return a.every(ra=>b.some(rb=>Math.abs(ra.rx-rb.rx)<thr&&Math.abs(ra.ry-rb.ry)<thr));
+}
+
+function regPos(r){
+  return (r.rx<0.33?'왼쪽':r.rx<0.66?'중앙':'오른쪽')+' '+(r.ry<0.33?'상단':r.ry<0.66?'중앙':'하단');
+}
+
+async function runMultiBlockAnalysis(){
+  if(!blurCache) return;
+  const BLOCKS=[4,6,8,10,12,14,16,18,20,24,28,32];
+  const curBlock=parseInt(document.getElementById('block').value);
+  const all=[];
+  for(const bs of BLOCKS){
+    await new Promise(r=>setTimeout(r,0));
+    const regs=quickRegions(bs);
+    if(regs.length) all.push({bs,regs});
+  }
+  const groups=[];
+  for(const {bs,regs} of all){
+    let placed=false;
+    for(const g of groups){
+      if(regsMatch(g.regs,regs)){g.sizes.push(bs);placed=true;break;}
+    }
+    if(!placed) groups.push({sizes:[bs],regs,count:regs.length});
+  }
+  const body=document.getElementById('blk-body');
+  const sec=document.getElementById('blk-section');
+  body.innerHTML='';
+  groups.forEach(g=>{
+    const isCur=g.sizes.includes(curBlock);
+    const div=document.createElement('div');
+    div.className='blk-row'+(isCur?' cur':'');
+    const sizeStr=g.sizes.map(s=>s===curBlock?`<b>${s}</b>`:s).join(', ');
+    const posStr=g.regs.map(regPos).join(' · ');
+    div.innerHTML=`<span class="blk-badge${isCur?' cur':''}">${sizeStr}</span>`+
+      `<span class="blk-info"><span class="blk-cnt">${g.count}개</span>${posStr}</span>`;
+    body.appendChild(div);
+  });
+  sec.style.display='block';
+}
+
+function toggleBlkDetail(){
+  const body=document.getElementById('blk-body');
+  const arrow=document.getElementById('blk-arrow');
+  const open=body.style.display!=='none';
+  body.style.display=open?'none':'block';
+  arrow.textContent=open?'▼':'▲';
+}
 
 function saveRs(){
   const refW=document.querySelector('#cv-top-k')?.parentElement?.clientWidth||390;

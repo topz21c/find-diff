@@ -88,8 +88,12 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 .blk-toggle:hover{background:#efefed}
 .blk-row{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border:1px solid #eee;border-radius:8px;margin-top:4px;font-size:12px;background:#fafafa}
 .blk-row.cur{border-color:#007AFF;background:#f0f7ff}
+.blk-row.best{border-color:#34C759;background:#f0fff4;cursor:pointer}
+.blk-row:not(.cur){cursor:pointer}
+.blk-row:not(.cur):hover{background:#f0f0ee}
 .blk-badge{background:#555;color:#fff;border-radius:6px;padding:2px 7px;font-size:11px;white-space:nowrap;flex-shrink:0;margin-top:1px}
 .blk-badge.cur{background:#007AFF}
+.blk-badge.best{background:#34C759}
 .blk-cnt{font-weight:700;color:#007AFF;margin-right:4px}
 .blk-pos{color:#555}
 .rn-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;padding:20px;overflow-y:auto}
@@ -210,7 +214,7 @@ const COLORS=['#FF3B30','#FF9500','#34C759','#007AFF','#AF52DE','#FF2D55','#00C7
 let imgDU='', topCV=null, botCV=null;
 let regions=[], activeIdx=-1, blinkTimer=null, IW=0, IH=0;
 let lastBlockDiff=null; // 차이 강조용 저장
-let blurCache=null, lastAutoSens=40;
+let blurCache=null, lastAutoSens=40, autoBlockApplied=false;
 
 ['block','sens','maxreg'].forEach(id=>{
   document.getElementById(id).oninput=e=>document.getElementById(id+'val').textContent=e.target.value;
@@ -766,7 +770,7 @@ function showErr(m){const e=document.getElementById('errbox');e.textContent=m;e.
 
 function resetAll(){
   if(blinkTimer){clearInterval(blinkTimer);blinkTimer=null;}
-  imgDU='';topCV=null;botCV=null;regions=[];activeIdx=-1;IW=0;IH=0;lastBlockDiff=null;blurCache=null;lastAutoSens=40;
+  imgDU='';topCV=null;botCV=null;regions=[];activeIdx=-1;IW=0;IH=0;lastBlockDiff=null;blurCache=null;lastAutoSens=40;autoBlockApplied=false;
   document.getElementById('blk-section').style.display='none';
   document.getElementById('blk-body').innerHTML='';
   dz.style.display='block';
@@ -787,7 +791,7 @@ const BLOCK_MIN=4, BLOCK_MAX=32, SENS_MIN=2, SENS_MAX=40;
 function stepVal(id, delta){
   const el=document.getElementById(id);
   let v=parseInt(el.value)+delta;
-  if(id==='block') v=Math.max(BLOCK_MIN,Math.min(BLOCK_MAX,v));
+  if(id==='block'){v=Math.max(BLOCK_MIN,Math.min(BLOCK_MAX,v));autoBlockApplied=true;}
   if(id==='sens')  v=Math.max(SENS_MIN, Math.min(SENS_MAX, v));
   el.value=v;
   document.getElementById(id+'val').textContent=v;
@@ -806,6 +810,7 @@ function stepVal(id, delta){
 window.addEventListener('resize',()=>{if(regions.length) renderCurrentTab();});
 
 function resetBlock(){
+  autoBlockApplied=false;
   const el=document.getElementById('block');
   el.value=14; document.getElementById('blockval').textContent=14;
   if(imgDU&&topCV){
@@ -908,6 +913,23 @@ function regPos(r){
   return (r.rx<0.33?'왼쪽':r.rx<0.66?'중앙':'오른쪽')+' '+(r.ry<0.33?'상단':r.ry<0.66?'중앙':'하단');
 }
 
+function closestTo14(sizes){
+  return sizes.reduce((best,s)=>Math.abs(s-14)<Math.abs(best-14)?s:best,sizes[0]);
+}
+
+function applyBlock(bs){
+  const el=document.getElementById('block');
+  el.value=bs; document.getElementById('blockval').textContent=bs;
+  if(imgDU&&topCV){
+    const ctrlEl=document.getElementById('ctrl');
+    const ctrlTop=ctrlEl.getBoundingClientRect().top+window.scrollY;
+    setLoading(true); showErr(''); setSt('재분석 중...');
+    autoAnalyze(parseInt(document.getElementById('sens').value),0,()=>{
+      requestAnimationFrame(()=>window.scrollTo({top:ctrlTop,behavior:'instant'}));
+    });
+  }
+}
+
 async function runMultiBlockAnalysis(){
   if(!blurCache) return;
   const BLOCKS=[4,6,8,10,12,14,16,18,20,24,28,32];
@@ -926,20 +948,41 @@ async function runMultiBlockAnalysis(){
     }
     if(!placed) groups.push({sizes:[bs],regs,count:regs.length});
   }
+  // 가장 많은 블록수를 가진 그룹 찾기 (동률이면 14에 가까운 쪽)
+  let bestGroup=null;
+  groups.forEach(g=>{
+    if(!bestGroup||g.sizes.length>bestGroup.sizes.length||
+       (g.sizes.length===bestGroup.sizes.length&&
+        Math.abs(closestTo14(g.sizes)-14)<Math.abs(closestTo14(bestGroup.sizes)-14))){
+      bestGroup=g;
+    }
+  });
+  const bestBlock=bestGroup?closestTo14(bestGroup.sizes):curBlock;
+
   const body=document.getElementById('blk-body');
   const sec=document.getElementById('blk-section');
   body.innerHTML='';
   groups.forEach(g=>{
     const isCur=g.sizes.includes(curBlock);
+    const isBest=g===bestGroup&&!isCur;
     const div=document.createElement('div');
-    div.className='blk-row'+(isCur?' cur':'');
+    div.className='blk-row'+(isCur?' cur':isBest?' best':'');
+    const applySize=closestTo14(g.sizes);
+    if(!isCur) div.onclick=()=>{autoBlockApplied=true;applyBlock(applySize);};
     const sizeStr=g.sizes.map(s=>s===curBlock?`<b>${s}</b>`:s).join(', ');
     const posStr=g.regs.map(regPos).join(' · ');
-    div.innerHTML=`<span class="blk-badge${isCur?' cur':''}">${sizeStr}</span>`+
+    const badge=isCur?'cur':isBest?'best':'';
+    div.innerHTML=`<span class="blk-badge${badge?' '+badge:''}">${sizeStr}</span>`+
       `<span class="blk-info"><span class="blk-cnt">${g.count}개</span>${posStr}</span>`;
     body.appendChild(div);
   });
   sec.style.display='block';
+
+  // 최적 블록이 현재와 다르면 자동 재분석 (1회만)
+  if(!autoBlockApplied&&bestBlock!==curBlock){
+    autoBlockApplied=true;
+    setTimeout(()=>applyBlock(bestBlock),100);
+  }
 }
 
 function toggleBlkDetail(){

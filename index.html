@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.18</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.19</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -689,7 +689,7 @@ function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
   const sx=dw/fw, sy=dh/fh;
   const lw=Math.max(1.5,dw/500);
   const rs=rsOvr!==undefined ? rsOvr : Math.max(11,dw/80);
-  const minD=(rs+3)*2+8; // 최소 중심 거리
+  const minD=(rs+3)*2+6; // 최소 중심 거리
 
   // 1패스: 초기 위치 — 박스 위 중앙 (화면 밖이면 아래)
   const badges=regions.map(r=>{
@@ -700,25 +700,18 @@ function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
     return {numX, numY, bx1, by1, bx2, by2};
   });
 
-  // 2패스: Y축 밀기로 겹침 해소 — X는 고정, 위아래로만 밀어서 박스 근처 유지 (최대 30회)
-  for(let iter=0;iter<30;iter++){
+  // 2패스: 전체 배지를 Y 기준 정렬 후 위→아래로 캐스케이드
+  // 위 배지는 고정, 겹치는 아래 배지만 내려서 진동 없이 수렴
+  for(let iter=0;iter<badges.length;iter++){
+    const order=[...Array(badges.length).keys()].sort((i,j)=>badges[i].numY-badges[j].numY);
     let moved=false;
-    for(let a=0;a<badges.length;a++){
-      for(let b=a+1;b<badges.length;b++){
-        const dx=badges[b].numX-badges[a].numX;
-        const dy=badges[b].numY-badges[a].numY;
-        if(dx*dx+dy*dy<minD*minD){
-          moved=true;
-          const neededY=Math.sqrt(Math.max(0,minD*minD-dx*dx));
-          const yPush=(neededY-Math.abs(dy))/2+1;
-          if(badges[a].numY<=badges[b].numY){
-            badges[a].numY=Math.max(rs+3, badges[a].numY-yPush);
-            badges[b].numY=Math.min(dh-rs-3, badges[b].numY+yPush);
-          } else {
-            badges[a].numY=Math.min(dh-rs-3, badges[a].numY+yPush);
-            badges[b].numY=Math.max(rs+3, badges[b].numY-yPush);
-          }
-        }
+    for(let k=0;k<order.length-1;k++){
+      const a=badges[order[k]], b=badges[order[k+1]];
+      const dx=b.numX-a.numX, dy=b.numY-a.numY;
+      if(dx*dx+dy*dy<minD*minD){
+        moved=true;
+        const neededY=Math.sqrt(Math.max(0,minD*minD-dx*dx));
+        b.numY=Math.min(dh-rs-3, a.numY+neededY+1);
       }
     }
     if(!moved) break;
@@ -1134,6 +1127,12 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.19</span><span class="rn-date">2026-05-29</span>
+      <ul class="rn-list">
+        <li>번호 배지 겹침 방지 알고리즘 확정 — Y 정렬 후 위→아래 캐스케이드 방식으로 진동 없이 완전 수렴</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.18</span><span class="rn-date">2026-05-29</span>

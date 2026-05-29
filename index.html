@@ -101,8 +101,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기</h1>
-  <div class="sub">이미지를 업로드하면 픽셀 비교로 차이점을 자동으로 찾아냅니다</div>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.6</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -137,7 +136,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
       <span class="step-hint">세밀 ← → 빠름</span>
     </div>
     <div class="hint" style="margin-top:8px">
-      버튼을 누르면 즉시 재분석합니다 · 감도는 5개를 찾을 때까지 자동 조절
+      원하는 결과가 나오지 않으면 블록 크기를 변경해보세요
     </div>
     <!-- 숨김 hidden inputs -->
     <input type="hidden" id="block" value="14">

@@ -66,7 +66,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 .dlist{margin-top:10px}
 .dlist h3{font-size:14px;font-weight:600;margin-bottom:6px}
 .di{display:flex;align-items:center;gap:8px;padding:7px 12px;background:#fff;border:1px solid #e8e8e8;border-radius:8px;margin-bottom:4px;cursor:pointer;font-size:13px;transition:background .15s}
-.di:hover{background:#f5f5f3}.di.on{background:#f0f0ee;border-color:#bbb}
+.di:hover{background:#f5f5f3}.di.on{background:#fff;border-color:#007AFF;border-left:3px solid #007AFF;}
 .ddot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .dnum{margin-left:auto;font-size:11px;padding:2px 9px;border-radius:10px;background:#f0f0ee;color:#666}
 .rbtn{width:100%;padding:7px;font-size:12px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#666;margin-top:6px}
@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.14</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.15</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -670,6 +670,7 @@ function drawToCanvas(cvId,srcCanvas,hl){
   const ctx=cv.getContext('2d');
   ctx.scale(dpr,dpr);
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  ctx.globalAlpha=1;
   ctx.drawImage(srcCanvas,0,0,dw,dh);
   drawMarkers(ctx,dw,dh,hl,IW,IH);
 
@@ -755,6 +756,7 @@ function startBlink(){
   let showTop=true;
   const draw=()=>{
     ctx.clearRect(0,0,dw,dh);
+    ctx.globalAlpha=1;
     ctx.drawImage(showTop?topCV:botCV,0,0,dw,dh);
     drawMarkers(ctx,dw,dh,activeIdx,IW,IH);
     showTop=!showTop;
@@ -774,6 +776,7 @@ document.querySelectorAll('.tab').forEach(btn=>{
 });
 
 function buildList(){
+  activeIdx=-1;
   const cont=document.getElementById('ditems');cont.innerHTML='';
   regions.forEach((r,i)=>{
     const el=document.createElement('div');el.className='di';
@@ -1104,6 +1107,13 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.15</span><span class="rn-date">2026-05-29</span>
+      <ul class="rn-list">
+        <li>선택 항목 스타일 변경 — 회색 배경 대신 파란 테두리로 선택 상태 표시</li>
+        <li>재분석 시 이전 선택 항목 자동 초기화 — 블록 크기 변경 후에도 전체 마커 정상 표시</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.14</span><span class="rn-date">2026-05-29</span>

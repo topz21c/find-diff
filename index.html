@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.21</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.22</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -362,17 +362,20 @@ function doAnalyze(forceSens, forceFinal, callback, doneCallback){
         for(let x=0;x<fw;x+=6){const i=(y*fw+x)*4;s+=(px[i]+px[i+1]+px[i+2])/3;n++;}
         rowBr[y]=s/n;
       }
-      // 구분선 감지: 43%~63% 구간에서 밝기가 가장 크게 하강하는 지점
-      // (밝은 구분선 → 어두운 이미지 시작)
-      const SCAN_S=Math.floor(fh*0.43), SCAN_E=Math.floor(fh*0.63);
-      const WIN=5;
+      // 구분선 감지: 38%~75% 구간에서 밝기가 가장 크게 하강하는 지점
+      const SCAN_S=Math.floor(fh*0.38), SCAN_E=Math.floor(fh*0.75);
+      const WIN=7;
       let bestDrop=0, bestDropY=Math.floor(fh*0.5);
+      let minBrVal=255, minBrY=Math.floor(fh*0.5);
       for(let y=SCAN_S;y<SCAN_E;y++){
         let before=0,after=0,nb=0,na=0;
         for(let d=1;d<=WIN;d++){if(y-d>=0){before+=rowBr[y-d];nb++;} if(y+d<fh){after+=rowBr[y+d];na++;}}
         const drop=(nb?before/nb:0)-(na?after/na:0);
         if(drop>bestDrop){bestDrop=drop;bestDropY=y;}
+        if(rowBr[y]<minBrVal){minBrVal=rowBr[y];minBrY=y;}
       }
+      // bestDrop이 약하면(≤15) 최소 밝기 행을 구분선으로 사용
+      if(bestDrop<=15&&minBrVal<80) bestDropY=minBrY;
       // 구분선 경계 정밀 탐색 (이미지 콘텐츠 임계값 기반)
       const BR_THRESH=160;
       let splitY=bestDropY-1;
@@ -1178,6 +1181,13 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.22</span><span class="rn-date">2026-06-02</span>
+      <ul class="rn-list">
+        <li>구분선 스캔 범위 확장 (43~63% → 38~75%) — 구분선이 더 아래에 있는 이미지 대응</li>
+        <li>최소 밝기 행 보완 감지 추가 — 밝기 하강폭이 작을 때도 어두운 구분선 정확히 탐색</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.21</span><span class="rn-date">2026-06-02</span>

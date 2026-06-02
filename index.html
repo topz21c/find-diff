@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.18</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.19</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -394,14 +394,7 @@ function doAnalyze(forceSens, forceFinal, callback, doneCallback){
       botCV=document.createElement('canvas');botCV.width=fw;botCV.height=IH;
       botCV.getContext('2d').drawImage(img,0,botStart,fw,IH,0,0,fw,IH);
 
-      // 이미지 분할 완료 → 분석 전에도 비교 탭 즉시 표시
-      if(document.getElementById('result').style.display==='none'){
-        document.getElementById('result').style.display='block';
-        document.getElementById('rbadge').textContent='분석 중...';
-        document.getElementById('dtitle').textContent='';
-        renderCurrentTab();
-        setTimeout(()=>document.getElementById('result').scrollIntoView({behavior:'smooth'}),50);
-      }
+
 
       const traw=topCV.getContext('2d').getImageData(0,0,fw,IH).data;
       const braw=botCV.getContext('2d').getImageData(0,0,fw,IH).data;
@@ -1177,6 +1170,13 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.19</span><span class="rn-date">2026-06-02</span>
+      <ul class="rn-list">
+        <li>비교 탭은 분석 결과와 함께 표시 (분석 전 미리보기 제거)</li>
+        <li>차이점 0개 시 메시지 개선 — "비교 탭에서 직접 확인해 보세요"</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.18</span><span class="rn-date">2026-06-02</span>

@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.25</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.21</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -1192,38 +1192,10 @@ async function saveCanvas(cvId, filename){
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
     </div>
     <div class="rn-entry">
-      <span class="rn-ver">v1.25</span><span class="rn-date">2026-06-02</span>
-      <ul class="rn-list">
-        <li>위/아래 분할을 밝기 대신 자기상관(두 이미지 일치도)으로 탐지 — 밝은 배경 이미지도 정확히 분리</li>
-        <li>구분선 밝기에 의존하지 않아 모든 배경(밝은/어두운/혼합)에서 안정적으로 동작</li>
-      </ul>
-    </div>
-    <div class="rn-entry">
-      <span class="rn-ver">v1.24</span><span class="rn-date">2026-06-02</span>
-      <ul class="rn-list">
-        <li>구분선 감지: 최대 하강값 대신 "첫 번째 유의미한 하강" 우선 사용</li>
-        <li>두 번째 이미지 하단 경계(더 큰 하강)보다 실제 구분선(먼저 나타남)을 정확히 선택</li>
-      </ul>
-    </div>
-    <div class="rn-entry">
-      <span class="rn-ver">v1.23</span><span class="rn-date">2026-06-02</span>
-      <ul class="rn-list">
-        <li>구분선 감지 알고리즘 변경 — 단방향 밝기 하강 → 양방향 골짜기 탐지</li>
-        <li>두 번째 이미지 하단 경계를 구분선으로 오인하는 문제 근본 수정</li>
-      </ul>
-    </div>
-    <div class="rn-entry">
-      <span class="rn-ver">v1.22</span><span class="rn-date">2026-06-02</span>
-      <ul class="rn-list">
-        <li>구분선 스캔 범위 확장 (43~63% → 38~75%) — 구분선이 더 아래에 있는 이미지 대응</li>
-        <li>최소 밝기 행 보완 감지 추가 — 밝기 하강폭이 작을 때도 어두운 구분선 정확히 탐색</li>
-      </ul>
-    </div>
-    <div class="rn-entry">
       <span class="rn-ver">v1.21</span><span class="rn-date">2026-06-02</span>
       <ul class="rn-list">
-        <li>위/아래 이미지 추출 정확도 개선 — 구분선 전후 경계를 밝기 임계값으로 정밀 탐색</li>
-        <li>위 사진에 아래 사진 상단이 포함되거나 아래 사진 상단이 잘리는 문제 수정</li>
+        <li>위/아래 이미지 분할을 자기상관(두 이미지 일치도) 방식으로 개선 — 밝은/어두운/혼합 배경 모두 정확히 분리</li>
+        <li>구분선 밝기에 의존하지 않아 위 사진에 아래 사진이 섞이거나 잘리는 문제 해결</li>
       </ul>
     </div>
     <div class="rn-entry">

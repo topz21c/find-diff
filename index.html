@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.20</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.21</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -373,12 +373,21 @@ function doAnalyze(forceSens, forceFinal, callback, doneCallback){
         const drop=(nb?before/nb:0)-(na?after/na:0);
         if(drop>bestDrop){bestDrop=drop;bestDropY=y;}
       }
+      // 구분선 경계 정밀 탐색 (이미지 콘텐츠 임계값 기반)
+      const BR_THRESH=160;
       let splitY=bestDropY-1;
       let botStart=bestDropY;
-      // 구분선 앞 흰색 행들 건너뛰기 (splitY 앞으로 당기기)
-      for(let y=splitY;y>splitY-20;y--){
-        if(rowBr[y]<230) {splitY=y; break;}
+      // 첫 번째 이미지 끝: bestDropY에서 역방향으로 밝은 행 탐색
+      for(let y=bestDropY-1;y>=Math.max(topStart,bestDropY-150);y--){
+        if(rowBr[y]>BR_THRESH){splitY=y;break;}
       }
+      // 두 번째 이미지 시작: 어두운 구분선 건너뛰고 밝은 행 탐색
+      let foundDark=false;
+      for(let y=splitY+1;y<Math.min(fh,splitY+200);y++){
+        if(!foundDark&&rowBr[y]<BR_THRESH) foundDark=true;
+        if(foundDark&&rowBr[y]>BR_THRESH){botStart=y;break;}
+      }
+      if(!foundDark) botStart=splitY+1;
       IW=fw; IH=splitY-topStart;
       if(IH<80){
         // fallback: 단순 2분할
@@ -1169,6 +1178,13 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.21</span><span class="rn-date">2026-06-02</span>
+      <ul class="rn-list">
+        <li>위/아래 이미지 추출 정확도 개선 — 구분선 전후 경계를 밝기 임계값으로 정밀 탐색</li>
+        <li>위 사진에 아래 사진 상단이 포함되거나 아래 사진 상단이 잘리는 문제 수정</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.20</span><span class="rn-date">2026-06-02</span>

@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.24</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.25</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -355,54 +355,58 @@ function doAnalyze(forceSens, forceFinal, callback, doneCallback){
         for(let x=0;x<fw;x+=4){const i=(y*fw+x)*4;if(px[i]>120&&px[i]<230&&px[i+1]<130&&px[i+2]>160)pc++;}
         if(pc>fw/4*0.8) topStart=y+1;
       }
-      // 밝기 배열 계산
-      const rowBr=new Float32Array(fh);
+      // ── 자기상관(self-similarity) 기반 분할 ──
+      // 틀린그림찾기는 위/아래 두 이미지가 거의 동일하므로,
+      // 밝기가 아니라 "두 이미지가 행 단위로 가장 잘 겹치는 간격"으로 분할한다.
+      // (밝은 배경/어두운 배경 모두에서 동작 — 구분선 밝기에 의존하지 않음)
+      const NS=24; // 행당 가로 샘플 개수
+      const sig=new Float32Array(fh*NS);
       for(let y=0;y<fh;y++){
-        let s=0,n=0;
-        for(let x=0;x<fw;x+=6){const i=(y*fw+x)*4;s+=(px[i]+px[i+1]+px[i+2])/3;n++;}
-        rowBr[y]=s/n;
-      }
-      // 구분선 감지: 38~78% 구간에서 밝기 하강 배열 계산
-      const SCAN_S=Math.floor(fh*0.38), SCAN_E=Math.floor(fh*0.78);
-      const WIN=5;
-      let bestDrop=0, bestDropY=Math.floor(fh*0.5);
-      const rowDrop=new Float32Array(fh);
-      for(let y=SCAN_S;y<SCAN_E;y++){
-        let before=0,after=0,nb=0,na=0;
-        for(let d=1;d<=WIN;d++){if(y-d>=0){before+=rowBr[y-d];nb++;} if(y+d<fh){after+=rowBr[y+d];na++;}}
-        rowDrop[y]=(nb?before/nb:0)-(na?after/na:0);
-        if(rowDrop[y]>bestDrop){bestDrop=rowDrop[y];bestDropY=y;}
-      }
-      // 최대 하강의 70% 이상인 첫 위치가 최대보다 50행+ 앞이면 실제 구분선으로 사용
-      // (두 번째 이미지 하단 경계보다 먼저 나타나는 실제 구분선 우선)
-      if(bestDrop>15){
-        const sigThresh=bestDrop*0.70;
-        for(let y=SCAN_S;y<SCAN_E;y++){
-          if(rowDrop[y]>=sigThresh){if(bestDropY-y>50) bestDropY=y; break;}
+        const base=y*NS;
+        for(let k=0;k<NS;k++){
+          const x=Math.min(fw-1,Math.floor((k+0.5)*fw/NS));
+          const i=(y*fw+x)*4;
+          sig[base+k]=(px[i]+px[i+1]+px[i+2])/3;
         }
       }
-      // 구분선 경계 정밀 탐색 (이미지 콘텐츠 임계값 기반)
-      const BR_THRESH=160;
-      let splitY=bestDropY-1;
-      let botStart=bestDropY;
-      // 첫 번째 이미지 끝: bestDropY에서 역방향으로 밝은 행 탐색
-      for(let y=bestDropY-1;y>=Math.max(topStart,bestDropY-150);y--){
-        if(rowBr[y]>BR_THRESH){splitY=y;break;}
+      const rowSAD=(y1,y2)=>{
+        const b1=y1*NS, b2=y2*NS; let s=0;
+        for(let k=0;k<NS;k++) s+=Math.abs(sig[b1+k]-sig[b2+k]);
+        return s/NS;
+      };
+      // period(두 이미지 상단 간 간격) 탐색: 첫 이미지 상단 밴드를 p만큼 내려
+      // 두 번째 이미지와 비교했을 때 SAD가 최소가 되는 p가 정답
+      const bandH=Math.floor(fh*0.26); // 첫 이미지보다 작게(겹침 영역만 비교)
+      const pMin=Math.floor(fh*0.30), pMax=Math.floor(fh*0.52);
+      let bestErr=Infinity, bestP=Math.floor(fh*0.42);
+      for(let p=pMin;p<=pMax;p++){
+        let err=0,cnt=0;
+        for(let y=topStart;y<topStart+bandH;y+=2){
+          if(y+p>=fh) break;
+          err+=rowSAD(y,y+p); cnt++;
+        }
+        if(cnt<10) continue;
+        err/=cnt;
+        if(err<bestErr){bestErr=err;bestP=p;}
       }
-      // 두 번째 이미지 시작: 어두운 구분선 건너뛰고 밝은 행 탐색
-      let foundDark=false;
-      for(let y=splitY+1;y<Math.min(fh,splitY+200);y++){
-        if(!foundDark&&rowBr[y]<BR_THRESH) foundDark=true;
-        if(foundDark&&rowBr[y]>BR_THRESH){botStart=y;break;}
+      let botStart=topStart+bestP;
+      // IH(공통 이미지 높이): 두 번째 이미지가 하단(게임 UI 등)에 닿아
+      // 매칭이 깨지는 지점까지. period를 넘지 않도록 제한.
+      const errThresh=Math.max(28,bestErr*3);
+      let IHcalc=bestP, runBad=0;
+      for(let k=Math.floor(bestP*0.4);k<bestP;k++){
+        if(topStart+k>=fh||botStart+k>=fh){IHcalc=k;break;}
+        if(rowSAD(topStart+k,botStart+k)>errThresh){
+          if(++runBad>=4){IHcalc=k-3;break;}
+        } else runBad=0;
       }
-      if(!foundDark) botStart=splitY+1;
-      IW=fw; IH=splitY-topStart;
+      IW=fw;
+      IH=Math.min(IHcalc,bestP,fh-botStart);
       if(IH<80){
         // fallback: 단순 2분할
         topStart=Math.floor(fh*0.20);
-        splitY=Math.floor(fh*0.52);
         botStart=Math.floor(fh*0.54);
-        IH=splitY-topStart;
+        IH=Math.floor(fh*0.32);
       }
 
       // ── 2. 크롭 ──
@@ -1186,6 +1190,13 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.25</span><span class="rn-date">2026-06-02</span>
+      <ul class="rn-list">
+        <li>위/아래 분할을 밝기 대신 자기상관(두 이미지 일치도)으로 탐지 — 밝은 배경 이미지도 정확히 분리</li>
+        <li>구분선 밝기에 의존하지 않아 모든 배경(밝은/어두운/혼합)에서 안정적으로 동작</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.24</span><span class="rn-date">2026-06-02</span>

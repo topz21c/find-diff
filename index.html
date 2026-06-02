@@ -113,7 +113,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.16</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.17</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -415,11 +415,19 @@ function doAnalyze(forceSens, forceFinal, callback, doneCallback){
       const bGb=gaussianBlur(bG,fw,IH,BLUR);
       const bBb=gaussianBlur(bB,fw,IH,BLUR);
 
-      // ── 5. 글로벌 색상 보정 (채널별 평균 차이 제거) ──
+      // ── 5. 로컬 밝기 보정 — 픽셀별 차이를 크게 블러해 공간적 조명 변화 추정 ──
+      // 전역 평균만 쓰면 위↔아래 밝기 차이가 다른 사진에서 실제 차이가 상쇄됨
       let drSum=0,dgSum=0,dbSum=0;
       for(let i=0;i<n;i++){drSum+=tRb[i]-bRb[i];dgSum+=tGb[i]-bGb[i];dbSum+=tBb[i]-bBb[i];}
       const drMean=drSum/n, dgMean=dgSum/n, dbMean=dbSum/n;
-      blurCache={tRb,tGb,tBb,bRb,bGb,bBb,drMean,dgMean,dbMean};
+      // 픽셀별 원시 차이 → 이미지 크기의 ~10% 반지름으로 블러 → 로컬 배경 추정
+      const rawDR=new Float32Array(n),rawDG=new Float32Array(n),rawDB=new Float32Array(n);
+      for(let i=0;i<n;i++){rawDR[i]=tRb[i]-bRb[i];rawDG[i]=tGb[i]-bGb[i];rawDB[i]=tBb[i]-bBb[i];}
+      const bgRad=Math.max(30,Math.round(Math.min(fw,IH)*0.10));
+      const bgDR=gaussianBlur(rawDR,fw,IH,bgRad);
+      const bgDG=gaussianBlur(rawDG,fw,IH,bgRad);
+      const bgDB=gaussianBlur(rawDB,fw,IH,bgRad);
+      blurCache={tRb,tGb,tBb,bRb,bGb,bBb,drMean,dgMean,dbMean,bgDR,bgDG,bgDB};
 
       // ── 6. 최적 블록 결정 (첫 분석 시) ──
       const wasAutoApplied=autoBlockApplied;
@@ -454,9 +462,9 @@ function doAnalyze(forceSens, forceFinal, callback, doneCallback){
               const y=by*BLOCK+dy, x=bx*BLOCK+dx;
               if(y>=IH||x>=fw) continue;
               const i=y*fw+x;
-              dr+=Math.abs((tRb[i]-bRb[i])-drMean);
-              dg+=Math.abs((tGb[i]-bGb[i])-dgMean);
-              db+=Math.abs((tBb[i]-bBb[i])-dbMean);
+              dr+=Math.abs((tRb[i]-bRb[i])-bgDR[i]);
+              dg+=Math.abs((tGb[i]-bGb[i])-bgDG[i]);
+              db+=Math.abs((tBb[i]-bBb[i])-bgDB[i]);
               cnt++;
             }
           }
@@ -900,7 +908,7 @@ function resetBlock(){
 
 function quickRegions(blockSize){
   if(!blurCache||!IW||!IH) return [];
-  const {tRb,tGb,tBb,bRb,bGb,bBb,drMean,dgMean,dbMean}=blurCache;
+  const {tRb,tGb,tBb,bRb,bGb,bBb,drMean,dgMean,dbMean,bgDR,bgDG,bgDB}=blurCache;
   const fw=IW,fh=IH,BLOCK=blockSize,sens=lastAutoSens;
   const bh=Math.floor(fh/BLOCK),bw2=Math.floor(fw/BLOCK);
   const blockDiffMap=new Float32Array(fh*fw);
@@ -912,9 +920,9 @@ function quickRegions(blockSize){
           const y=by*BLOCK+dy,x=bx*BLOCK+dx;
           if(y>=fh||x>=fw) continue;
           const i=y*fw+x;
-          dr+=Math.abs((tRb[i]-bRb[i])-drMean);
-          dg+=Math.abs((tGb[i]-bGb[i])-dgMean);
-          db+=Math.abs((tBb[i]-bBb[i])-dbMean);
+          dr+=Math.abs((tRb[i]-bRb[i])-bgDR[i]);
+          dg+=Math.abs((tGb[i]-bGb[i])-bgDG[i]);
+          db+=Math.abs((tBb[i]-bBb[i])-bgDB[i]);
           cnt++;
         }
       }
@@ -1154,6 +1162,12 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.17</span><span class="rn-date">2026-06-02</span>
+      <ul class="rn-list">
+        <li>밝기 차이 보정 알고리즘 개선 — 전역 평균 대신 픽셀별 로컬 배경(대반경 블러)으로 공간적 조명 변화 제거, 촬영 조건이 다른 사진도 정확하게 분석</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.16</span><span class="rn-date">2026-05-29</span>

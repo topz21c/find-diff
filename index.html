@@ -71,6 +71,9 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 .dnum{margin-left:auto;font-size:11px;padding:2px 9px;border-radius:10px;background:#f0f0ee;color:#666}
 .rbtn{width:100%;padding:7px;font-size:12px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#666;margin-top:6px}
 .rbtn:hover{background:#f5f5f3}
+.hint-reveal-btn{background:#FF9500;color:#fff;border:none;border-radius:22px;padding:11px 32px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:-.3px;box-shadow:0 3px 10px rgba(255,149,0,.35);transition:transform .15s,box-shadow .15s}
+.hint-reveal-btn:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(255,149,0,.45)}
+.hint-reveal-btn:active{transform:scale(.96)}
 @media(max-width:480px){.sg{grid-template-columns:1fr}}
 
 .stepper-row{display:flex;align-items:center;gap:12px;margin-bottom:7px}
@@ -113,7 +116,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.19</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.20</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -195,6 +198,10 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
     <div class="panel" id="panel-diff">
       <div class="cvwrap"><canvas id="cv-diff"></canvas></div>
     </div>
+    <div id="hint-bar" style="display:none;text-align:center;padding:14px 0 8px;border-top:1px solid #eee;margin-top:2px">
+      <div id="hint-msg" style="font-size:14px;color:#555;margin-bottom:10px;font-weight:500"></div>
+      <button class="hint-reveal-btn" onclick="revealAnswer()">🔍 정답 보기</button>
+    </div>
     <div class="dlist">
       <h3 id="dtitle"></h3>
       <div id="ditems"></div>
@@ -213,6 +220,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 const COLORS=['#FF3B30','#FF9500','#34C759','#007AFF','#AF52DE','#FF2D55','#00C7BE','#FF9F0A'];
 let imgDU='', topCV=null, botCV=null;
 let regions=[], activeIdx=-1, blinkTimer=null, IW=0, IH=0;
+let hintMode=false;
 let lastBlockDiff=null; // 차이 강조용 저장
 let blurCache=null, lastAutoSens=40, autoBlockApplied=false;
 
@@ -594,10 +602,22 @@ function doAnalyze(forceSens, forceFinal, callback, doneCallback){
           };});
 
       // 결과와 비교 탭 항상 표시 (0개여도)
+      hintMode = regions.length > 0;
       buildList();
       document.getElementById('result').style.display='block';
-      document.getElementById('rbadge').textContent=regions.length+'개 발견';
-      document.getElementById('dtitle').textContent='발견된 차이점 '+regions.length+'개';
+      if(hintMode){
+        document.getElementById('rbadge').textContent=regions.length+'개 발견';
+        document.getElementById('dtitle').style.display='none';
+        document.getElementById('ditems').style.display='none';
+        document.getElementById('hint-msg').textContent='차이점 '+regions.length+'개가 숨어있어요! 직접 찾아보세요 👆';
+        document.getElementById('hint-bar').style.display='block';
+      } else {
+        document.getElementById('rbadge').textContent='0개 발견';
+        document.getElementById('dtitle').style.display='';
+        document.getElementById('dtitle').textContent='발견된 차이점 0개';
+        document.getElementById('ditems').style.display='';
+        document.getElementById('hint-bar').style.display='none';
+      }
       renderCurrentTab();
 
       // 재시도 중 (0개 또는 5개 미만): 상태 업데이트 후 계속 시도
@@ -718,6 +738,24 @@ function drawToCanvas(cvId,srcCanvas,hl){
 }
 
 function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
+  // 힌트 모드: 2배 크기 주황 박스, 숫자 없음
+  if(hintMode && regions.length>0){
+    const sx=dw/fw, sy=dh/fh;
+    ctx.lineWidth=Math.max(2.5,dw/280);
+    for(const r of regions){
+      const cx=((r.x1+r.x2)/2)*sx, cy=((r.y1+r.y2)/2)*sy;
+      const hw=(r.x2-r.x1)*sx, hh=(r.y2-r.y1)*sy; // 2× 크기 (원래 반폭 → 전체폭)
+      const rx=Math.max(0,cx-hw), ry=Math.max(0,cy-hh);
+      const rw=Math.min(dw,cx+hw)-rx, rh=Math.min(dh,cy+hh)-ry;
+      ctx.fillStyle='rgba(255,149,0,0.14)';
+      ctx.strokeStyle='rgba(255,149,0,0.88)';
+      ctx.beginPath();
+      ctx.roundRect(rx,ry,rw,rh,8);
+      ctx.fill();
+      ctx.stroke();
+    }
+    return;
+  }
   const sx=dw/fw, sy=dh/fh;
   const lw=Math.max(1.5,dw/500);
   const rs=rsOvr!==undefined ? rsOvr : Math.max(11,dw/80);
@@ -879,8 +917,20 @@ function setLoading(on){
 function setSt(m){document.getElementById('stbar').textContent=m;}
 function showErr(m){const e=document.getElementById('errbox');e.textContent=m;e.style.display=m?'block':'none';}
 
+function revealAnswer(){
+  hintMode=false;
+  document.getElementById('hint-bar').style.display='none';
+  document.getElementById('dtitle').style.display='';
+  document.getElementById('dtitle').textContent='발견된 차이점 '+regions.length+'개';
+  document.getElementById('ditems').style.display='';
+  setSt('✅ '+regions.length+'개의 차이점을 발견했습니다!');
+  renderCurrentTab();
+  setTimeout(()=>document.getElementById('ditems').scrollIntoView({behavior:'smooth',block:'nearest'}),150);
+}
+
 function resetAll(){
   if(blinkTimer){clearInterval(blinkTimer);blinkTimer=null;}
+  hintMode=false;
   imgDU='';topCV=null;botCV=null;regions=[];activeIdx=-1;IW=0;IH=0;lastBlockDiff=null;blurCache=null;lastAutoSens=40;autoBlockApplied=false;
   document.getElementById('blk-section').style.display='none';
   document.getElementById('blk-body').innerHTML='';
@@ -890,6 +940,9 @@ function resetAll(){
   document.getElementById('fbar').style.display='none';
   document.getElementById('ctrl').style.display='none';
   document.getElementById('result').style.display='none';
+  document.getElementById('hint-bar').style.display='none';
+  document.getElementById('dtitle').style.display='';
+  document.getElementById('ditems').style.display='';
   document.getElementById('abtn').classList.remove('ready','running');
   setSt('');showErr('');
   document.getElementById('fi').value='';
@@ -1190,6 +1243,13 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.20</span><span class="rn-date">2026-06-03</span>
+      <ul class="rn-list">
+        <li>힌트 기능 추가 — 분석 완료 후 정답 위치를 2배 크기 주황 박스로 먼저 표시, 번호 없음</li>
+        <li>비교 탭에서 직접 찾아본 뒤 "🔍 정답 보기" 버튼으로 번호·목록 공개</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.19</span><span class="rn-date">2026-06-02</span>

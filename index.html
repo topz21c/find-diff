@@ -172,12 +172,12 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
   <div class="result" id="result">
     <div class="rhead"><h2>분석 결과</h2><span class="rbadge" id="rbadge"></span></div>
     <div class="tabs">
-      <button class="tab on" data-p="side">좌우 비교</button>
+      <button class="tab" data-p="side">좌우 비교</button>
       <button class="tab" data-p="stack">위아래</button>
-      <button class="tab" data-p="blink">깜빡임</button>
+      <button class="tab on" data-p="blink">깜빡임</button>
       <button class="tab" data-p="diff">차이 강조</button>
     </div>
-    <div class="panel on" id="panel-side">
+    <div class="panel" id="panel-side">
       <div class="sg">
         <div><div class="cv-title">위 그림</div><div class="cvwrap"><canvas id="cv-top-s"></canvas></div></div>
         <div><div class="cv-title">아래 그림</div><div class="cvwrap"><canvas id="cv-bot-s"></canvas></div></div>
@@ -192,7 +192,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
       <button class="save-btn" onclick="saveCanvas('cv-bot-k','아래그림.png')">⬇ 아래 그림 저장</button>
       <button class="save-btn" onclick="saveFullCanvas('전체그림.png')" style="margin-top:10px;color:#34C759;border-color:#34C759">⬇ 전체 사진 저장 (위+아래)</button>
     </div>
-    <div class="panel" id="panel-blink">
+    <div class="panel on" id="panel-blink">
       <div class="cvwrap"><canvas id="cv-blink"></canvas></div>
     </div>
     <div class="panel" id="panel-diff">
@@ -851,7 +851,7 @@ function drawMarkers(ctx,dw,dh,hl,fw,fh,rsOvr){
 }
 
 function renderCurrentTab(){
-  const p=document.querySelector('.tab.on')?.dataset.p||'side';
+  const p=document.querySelector('.tab.on')?.dataset.p||'blink';
   if(p==='side'){drawToCanvas('cv-top-s',topCV,activeIdx);drawToCanvas('cv-bot-s',botCV,activeIdx);}
   else if(p==='stack'){drawToCanvas('cv-top-k',topCV,activeIdx);drawToCanvas('cv-bot-k',botCV,activeIdx);}
   else if(p==='blink') startBlink();

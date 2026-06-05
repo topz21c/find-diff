@@ -116,7 +116,7 @@ h1{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
 </head>
 <body>
 <div class="wrap">
-  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.20</span></h1>
+  <h1>🔍 틀린 그림 찾기 <span style="font-size:14px;color:#aaa;font-weight:400">v1.21</span></h1>
   <div style="text-align:center;font-size:12px;color:#bbb;margin-top:-10px;margin-bottom:14px;"><span onclick="document.getElementById('rn-overlay').classList.add('on')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">created by topz</span></div>
 
   <div class="dz" id="dz" onclick="document.getElementById('fi').click()">
@@ -357,11 +357,12 @@ function doAnalyze(forceSens, forceFinal, callback, doneCallback){
       const px=fctx.getImageData(0,0,fw,fh).data;
 
       // ── 1. 구조 자동 감지 ──
-      let topStart=Math.floor(fh*0.15);
+      // 게임 UI(보라색 크롬)가 있으면 그 아래부터, 없으면(순수 사진) 0부터 시작
+      let topStart=0, chromeDetected=false;
       for(let y=30;y<fh*0.4;y++){
         let pc=0;
         for(let x=0;x<fw;x+=4){const i=(y*fw+x)*4;if(px[i]>120&&px[i]<230&&px[i+1]<130&&px[i+2]>160)pc++;}
-        if(pc>fw/4*0.8) topStart=y+1;
+        if(pc>fw/4*0.8){topStart=y+1;chromeDetected=true;}
       }
       // ── 자기상관(self-similarity) 기반 분할 ──
       // 틀린그림찾기는 위/아래 두 이미지가 거의 동일하므로,
@@ -411,10 +412,16 @@ function doAnalyze(forceSens, forceFinal, callback, doneCallback){
       IW=fw;
       IH=Math.min(IHcalc,bestP,fh-botStart);
       if(IH<80){
-        // fallback: 단순 2분할
-        topStart=Math.floor(fh*0.20);
-        botStart=Math.floor(fh*0.54);
-        IH=Math.floor(fh*0.32);
+        // fallback: 게임 UI 여부에 따라 분할 기준 다르게 적용
+        if(chromeDetected){
+          topStart=Math.floor(fh*0.20);
+          botStart=Math.floor(fh*0.54);
+          IH=Math.floor(fh*0.32);
+        } else {
+          topStart=0;
+          botStart=Math.floor(fh*0.50);
+          IH=Math.floor(fh*0.48);
+        }
       }
 
       // ── 2. 크롭 ──
@@ -1243,6 +1250,14 @@ async function saveCanvas(cvId, filename){
     <div class="rn-head">
       <h2>업데이트 내역</h2>
       <button class="rn-close" onclick="document.getElementById('rn-overlay').classList.remove('on')">✕</button>
+    </div>
+    <div class="rn-entry">
+      <span class="rn-ver">v1.21</span><span class="rn-date">2026-06-05</span>
+      <ul class="rn-list">
+        <li>순수 사진(게임 UI 없이 위아래 사진만 있는 경우) 이미지 분할 지원</li>
+        <li>게임 크롬 미감지 시 상단 0%부터 분석, 50/50 분할 자동 적용</li>
+        <li>기존 게임 스크린샷 동작 그대로 유지</li>
+      </ul>
     </div>
     <div class="rn-entry">
       <span class="rn-ver">v1.20</span><span class="rn-date">2026-06-03</span>
